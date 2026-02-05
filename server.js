@@ -1,144 +1,178 @@
-// server.js
+// server.js - THE FINAL VERSION
+
+// 1. IMPORTS
 const fastify = require('fastify')({ logger: true });
 const Database = require('better-sqlite3');
+const axios = require('axios');
+const cors = require('@fastify/cors');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
-// 1. CONNECT TO DATABASE
-// This creates a file named 'hookloop.db' in your folder
-const db = new Database('hookloop.db');
+// 2. CONFIGURATION
+const db = new Database('hookloop.db'); // Initialize Database
+const SECRET_KEY = "super_secret_key_123"; // Change this in production
 
-// 2. CREATE TABLE (The Schema)
-// We store headers and body as TEXT (JSON strings)
-db.exec(`
-  CREATE TABLE IF NOT EXISTS requests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    method TEXT,
-    headers TEXT,
-    body TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+// Enable CORS so Frontend can talk to Backend
+fastify.register(cors, { origin: true });
 
-// Prepare the "Insert" statement (for speed and safety)
-const insertStmt = db.prepare(`
-  INSERT INTO requests (method, headers, body) 
-  VALUES (?, ?, ?)
-`);
+// 3. SECURITY UTILITY (PII Redaction)
+function redactPII(obj) {
+  const sensitiveKeys = ['password', 'credit_card', 'card_number', 'secret', 'token', 'ssn'];
+  const newObj = JSON.parse(JSON.stringify(obj));
 
-fastify.get('/', async () => {
-  return { status: 'HookLoop Database is Active!' }
-});
-
-// THE INGESTION ROUTE
-fastify.post('/webhook', async (request, reply) => {
-  const method = request.method;
-  const headers = JSON.stringify(request.headers); // Convert object to string
-  const body = JSON.stringify(request.body);       // Convert object to string
-
-  // 3. SAVE TO DATABASE
-  const info = insertStmt.run(method, headers, body);
-  
-  console.log(`✅ Saved Webhook to DB! ID: ${info.lastInsertRowid}`);
-
-  return { status: 'received', id: info.lastInsertRowid }
-});
-
-// Start Server
-const start = async () => {
-  try {
-    await fastify.listen({ port: 4000 })
-    console.log('Server running on http://localhost:4000');
-  } catch (err) {
-    fastify.log.error(err)
-    process.exit(1)
+  for (const key in newObj) {
+    if (sensitiveKeys.some(s => key.toLowerCase().includes(s))) {
+      newObj[key] = '***_REDACTED_***'; 
+    } else if (typeof newObj[key] === 'object' && newObj[key] !== null) {
+      newObj[key] = redactPII(newObj[key]);
+    }
   }
+  return newObj;
 }
 
-// ... existing code ...
-const axios = require('axios'); // Import axios
+// 4. DATABASE SETUP (Run once on start)
+const dbSetup = db.transaction(() => {
+  // Create USERS table
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE,
+      password TEXT
+    )
+  `).run();
 
-// THE REPLAY ROUTE
-// We call this like: POST /replay/1  (where 1 is the ID)
-// UPGRADED REPLAY ROUTE
-fastify.post('/replay/:id', async (request, reply) => {
-  const { id } = request.params;
-  const { targetUrl, customBody } = request.body; // NOW ACCEPTING customBody
+  // Create REQUESTS table
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER, 
+      method TEXT,
+      headers TEXT,
+      body TEXT,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )
+  `).run();
+});
+dbSetup();
 
-  // 1. Fetch original log just to get headers/method context
-  const row = db.prepare('SELECT * FROM requests WHERE id = ?').get(id);
-  
-  if (!row) {
-    return reply.code(404).send({ error: 'Webhook ID not found' });
-  }
+// 5. AUTHENTICATION ROUTES (Login & Register)
 
-  console.log(`🔄 Replaying Webhook #${id} to ${targetUrl}...`);
+// REGISTER
+fastify.post('/register', async (req, reply) => {
+  const { email, password } = req.body;
+  if (!email || !password) return reply.code(400).send({ error: 'Missing email or password' });
 
   try {
-    // 2. DECISION: Use the new custom body OR the old database body
-    // If frontend sent 'customBody', use it. Otherwise parse the DB string.
-    const payloadToSend = customBody ? customBody : JSON.parse(row.body);
-
-    const response = await axios.post(targetUrl, payloadToSend, {
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
-
-    console.log(`✅ Replay Success! Status: ${response.status}`);
-    return { status: 'replayed', targetStatus: response.status };
-
-  } catch (error) {
-    console.log(`❌ Replay Failed: ${error.message}`);
-    return reply.code(500).send({ error: error.message });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const stmt = db.prepare('INSERT INTO users (email, password) VALUES (?, ?)');
+    stmt.run(email, hashedPassword);
+    return { message: 'User created successfully!' };
+  } catch (err) {
+    return reply.code(400).send({ error: 'Email already exists' });
   }
 });
 
-// server.js updates
-
-// Enable CORS so the Frontend (Port 5173) can talk to Backend (Port 4000)
-fastify.register(require('@fastify/cors'), { 
-  origin: true // Allow all origins for dev simplicity
-});
-
-// NEW ROUTE: Get all webhooks for the UI
-fastify.get('/webhooks', async (request, reply) => {
-  // Get the last 50 webhooks, newest first
-  const logs = db.prepare('SELECT * FROM requests ORDER BY id DESC LIMIT 50').all();
+// LOGIN
+fastify.post('/login', async (req, reply) => {
+  const { email, password } = req.body;
   
-  // Parse the JSON strings back into objects for the frontend
-  return logs.map(log => ({
-    ...log,
-    headers: JSON.parse(log.headers),
-    body: JSON.parse(log.body)
-  }));
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  if (!user) return reply.code(400).send({ error: 'Invalid email or password' });
+
+  const validPassword = await bcrypt.compare(password, user.password);
+  if (!validPassword) return reply.code(400).send({ error: 'Invalid email or password' });
+
+  const token = jwt.sign({ id: user.id, email: user.email }, SECRET_KEY, { expiresIn: '1h' });
+  return { token, email: user.email };
 });
 
-// server.js - ADD THIS NEW ROUTE
+// 6. CORE ROUTES (Webhooks, Stats, Replay)
 
-// ANALYTICS ENDPOINT
+// INGEST WEBHOOK (Public URL - e.g., Stripe sends here)
+// NEW: Unique URL for each user
+// Example: POST http://localhost:4000/webhook/5
+fastify.all('/webhook/:userId', async (request, reply) => {
+  const { userId } = request.params; // Get ID from URL
+  const { method, body, headers } = request;
+
+  console.log(`📩 Webhook received for User ${userId}!`);
+
+  const safeBody = redactPII(body || {}); 
+
+  // SAVE with the specific user_id
+  const stmt = db.prepare('INSERT INTO requests (user_id, method, headers, body) VALUES (?, ?, ?, ?)');
+  stmt.run(userId, method, JSON.stringify(headers), JSON.stringify(safeBody));
+
+  return { status: 'received', for_user: userId };
+});
+
+// GET WEBHOOKS (Protected - Needs Login)
+// NEW: Only get webhooks for the logged-in user
+fastify.get('/webhooks', async (req, reply) => {
+  // 1. Verify Token
+  try {
+    const token = req.headers.authorization.split(' ')[1];
+    const decoded = jwt.verify(token, SECRET_KEY);
+    const userId = decoded.id; // We know who is asking now
+
+    // 2. Fetch ONLY this user's data
+    const logs = db.prepare('SELECT * FROM requests WHERE user_id = ? ORDER BY id DESC LIMIT 50').all(userId);
+    
+    // 3. Return it
+    return logs.map(log => ({
+      ...log,
+      headers: JSON.parse(log.headers),
+      body: JSON.parse(log.body)
+    }));
+
+  } catch (err) {
+    return reply.code(401).send({ error: 'Unauthorized' });
+  }
+});
+
+// GET STATS (Analytics)
 fastify.get('/stats', async (request, reply) => {
-  // 1. Total Count
   const total = db.prepare('SELECT count(*) as count FROM requests').get().count;
-  
-  // 2. HTTP Method Breakdown (POST, GET, etc.)
   const methods = db.prepare('SELECT method, count(*) as count FROM requests GROUP BY method').all();
-
-  // 3. Status Code Breakdown (Success vs Fail from Replays)
-  // Note: This requires us to actually SAVE the replay status to DB (We'll simplify for now)
-  // For now, let's simulate "Traffic over time" by grouping by minute
+  
   const timeline = db.prepare(`
     SELECT strftime('%H:%M', timestamp) as time, count(*) as count 
     FROM requests 
     GROUP BY time 
-    ORDER BY id DESC 
-    LIMIT 10
-  `).all().reverse(); // Reverse to show oldest -> newest
+    ORDER BY id DESC LIMIT 10
+  `).all().reverse();
 
-  return {
-    total,
-    methods,
-    timeline
-  };
+  return { total, methods, timeline };
 });
 
-// ... start function ...
+// REPLAY WEBHOOK
+fastify.post('/replay/:id', async (request, reply) => {
+  const { id } = request.params;
+  const { targetUrl, customBody } = request.body;
+
+  const row = db.prepare('SELECT * FROM requests WHERE id = ?').get(id);
+  if (!row) return reply.code(404).send({ error: 'Webhook ID not found' });
+
+  try {
+    const payloadToSend = customBody ? customBody : JSON.parse(row.body);
+    const response = await axios.post(targetUrl, payloadToSend, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return { status: 'replayed', targetStatus: response.status };
+  } catch (error) {
+    return reply.code(500).send({ error: error.message });
+  }
+});
+
+// 7. START SERVER
+const start = async () => {
+  try {
+    await fastify.listen({ port: 4000 });
+    console.log('Server running on http://localhost:4000');
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+};
 start();

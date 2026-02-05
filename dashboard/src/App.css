@@ -11,9 +11,10 @@ body {
 }
 
 .container {
-  width: 90%;
-  max-width: 1200px;
-  margin-top: 40px;
+  max-width: 1400px;  /* ⬅️ Increased breadth (was likely smaller) */
+  width: 95%;         /* ⬅️ Takes up 95% of the screen width */
+  margin: 0 auto;     /* Centers it */
+  padding: 20px;
 }
 
 h1 {

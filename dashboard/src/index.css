@@ -66,3 +66,107 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+/* SEARCH BAR STYLES */
+.search-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  background-color: #161b22;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+}
+
+.search-input {
+  flex: 1;
+  background-color: #0d1117;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  padding: 10px 15px;
+  border-radius: 6px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-input:focus {
+  border-color: #58a6ff; /* Neon Blue focus */
+}
+
+.search-count {
+  color: #8b949e;
+  font-size: 0.9rem;
+  font-family: monospace;
+}
+
+/* Method Badges */
+.badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+.badge.POST { background-color: rgba(35, 134, 54, 0.2); color: #7ee787; border: 1px solid #238636; }
+.badge.GET { background-color: rgba(31, 111, 235, 0.2); color: #58a6ff; border: 1px solid #1f6feb; }
+.badge.PUT { background-color: rgba(158, 106, 3, 0.2); color: #d2a106; border: 1px solid #9e6a03; }
+
+/* LOGIN SCREEN STYLES */
+.login-container {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0d1117; /* Dark Background */
+}
+
+.login-box {
+  background: #161b22;
+  padding: 40px;
+  border-radius: 12px;
+  border: 1px solid #30363d;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  text-align: center;
+}
+
+.login-box h2 { margin-bottom: 5px; color: #fff; }
+.subtitle { color: #8b949e; margin-bottom: 20px; font-size: 0.9rem; }
+
+.input-group { text-align: left; margin-bottom: 15px; }
+.input-group label { display: block; color: #c9d1d9; font-size: 0.9rem; margin-bottom: 5px; }
+.input-group input {
+  width: 100%;
+  padding: 10px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  color: #fff;
+  border-radius: 6px;
+  box-sizing: border-box; /* Fixes width issues */
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 12px;
+  background-color: #238636;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  margin-top: 10px;
+}
+.btn-primary:hover { background-color: #2ea043; }
+
+.switch-mode { margin-top: 15px; color: #8b949e; font-size: 0.9rem; }
+.switch-mode span { color: #58a6ff; cursor: pointer; text-decoration: underline; }
+
+.error-msg {
+  background: rgba(218, 54, 51, 0.2);
+  color: #f85149;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  border: 1px solid rgba(218, 54, 51, 0.4);
+}
