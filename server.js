@@ -131,19 +131,32 @@ fastify.get('/webhooks', async (req, reply) => {
   }
 });
 
-// GET STATS (Analytics)
-fastify.get('/stats', async (request, reply) => {
-  const total = db.prepare('SELECT count(*) as count FROM requests').get().count;
-  const methods = db.prepare('SELECT method, count(*) as count FROM requests GROUP BY method').all();
-  
-  const timeline = db.prepare(`
-    SELECT strftime('%H:%M', timestamp) as time, count(*) as count 
-    FROM requests 
-    GROUP BY time 
-    ORDER BY id DESC LIMIT 10
-  `).all().reverse();
+// GET STATS (Protected & Personalized)
+fastify.get('/stats', async (req, reply) => {
+  try {
+    // 1. Verify who is asking
+    const token = req.headers.authorization.split(' ')[1];
+    const decoded = jwt.verify(token, SECRET_KEY);
+    const userId = decoded.id;
 
-  return { total, methods, timeline };
+    // 2. Run Queries Filtered by User ID
+    const total = db.prepare('SELECT count(*) as count FROM requests WHERE user_id = ?').get(userId).count;
+    
+    const methods = db.prepare('SELECT method, count(*) as count FROM requests WHERE user_id = ? GROUP BY method').all(userId);
+    
+    const timeline = db.prepare(`
+      SELECT strftime('%H:%M', timestamp, 'localtime') as time, count(*) as count 
+      FROM requests 
+      WHERE user_id = ?
+      GROUP BY time 
+      ORDER BY id DESC LIMIT 10
+    `).all(userId).reverse();
+
+    return { total, methods, timeline };
+
+  } catch (err) {
+    return reply.code(401).send({ error: 'Unauthorized' });
+  }
 });
 
 // REPLAY WEBHOOK

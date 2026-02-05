@@ -23,20 +23,23 @@ function App() {
 
   // 1. FETCH DATA (Only runs if we have a token)
   const fetchWebhooks = async () => {
-    if (!token) return; // Stop if not logged in
-    try {
-      // We send the token in the headers (Simulating Auth)
-      const res = await axios.get('http://localhost:4000/webhooks', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setWebhooks(res.data);
-      
-      const statsRes = await axios.get('http://localhost:4000/stats');
-      setStats(statsRes.data);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    }
-  };
+      if (!token) return; 
+
+      try {
+        const authHeader = { headers: { Authorization: `Bearer ${token}` } };
+
+        // 1. Fetch My Webhooks (Already Correct)
+        const res = await axios.get('http://localhost:4000/webhooks', authHeader);
+        setWebhooks(res.data);
+        
+        // 2. Fetch My Stats (FIXED: Added authHeader)
+        const statsRes = await axios.get('http://localhost:4000/stats', authHeader); 
+        setStats(statsRes.data);
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
 
   useEffect(() => {
     if (token) {
@@ -165,7 +168,7 @@ function App() {
                 <td>#{hook.id}</td>
                 <td><span className={`badge ${hook.method}`}>{hook.method}</span></td>
                 <td><pre>{JSON.stringify(hook.body, null, 2)}</pre></td>
-                <td>{new Date(hook.timestamp).toLocaleTimeString()}</td>
+                <td>{new Date(hook.timestamp + 'Z').toLocaleString()}</td>
                 <td>
                   <div className="action-buttons">
                     {/* Replay Button with TEXT */}
