@@ -58,11 +58,12 @@ const axios = require('axios'); // Import axios
 
 // THE REPLAY ROUTE
 // We call this like: POST /replay/1  (where 1 is the ID)
+// UPGRADED REPLAY ROUTE
 fastify.post('/replay/:id', async (request, reply) => {
   const { id } = request.params;
-  const { targetUrl } = request.body; // We will tell it WHERE to send
+  const { targetUrl, customBody } = request.body; // NOW ACCEPTING customBody
 
-  // 1. Fetch from Database
+  // 1. Fetch original log just to get headers/method context
   const row = db.prepare('SELECT * FROM requests WHERE id = ?').get(id);
   
   if (!row) {
@@ -72,16 +73,17 @@ fastify.post('/replay/:id', async (request, reply) => {
   console.log(`🔄 Replaying Webhook #${id} to ${targetUrl}...`);
 
   try {
-    // 2. Send it again (The "Forwarding" Logic)
-    // We parse the stored JSON strings back into objects
-    const response = await axios.post(targetUrl, JSON.parse(row.body), {
+    // 2. DECISION: Use the new custom body OR the old database body
+    // If frontend sent 'customBody', use it. Otherwise parse the DB string.
+    const payloadToSend = customBody ? customBody : JSON.parse(row.body);
+
+    const response = await axios.post(targetUrl, payloadToSend, {
       headers: {
         'Content-Type': 'application/json',
-        // In a real app, we would selectively forward headers here
       }
     });
 
-    console.log(`✅ Replay Success! Target responded with: ${response.status}`);
+    console.log(`✅ Replay Success! Status: ${response.status}`);
     return { status: 'replayed', targetStatus: response.status };
 
   } catch (error) {
@@ -108,6 +110,34 @@ fastify.get('/webhooks', async (request, reply) => {
     headers: JSON.parse(log.headers),
     body: JSON.parse(log.body)
   }));
+});
+
+// server.js - ADD THIS NEW ROUTE
+
+// ANALYTICS ENDPOINT
+fastify.get('/stats', async (request, reply) => {
+  // 1. Total Count
+  const total = db.prepare('SELECT count(*) as count FROM requests').get().count;
+  
+  // 2. HTTP Method Breakdown (POST, GET, etc.)
+  const methods = db.prepare('SELECT method, count(*) as count FROM requests GROUP BY method').all();
+
+  // 3. Status Code Breakdown (Success vs Fail from Replays)
+  // Note: This requires us to actually SAVE the replay status to DB (We'll simplify for now)
+  // For now, let's simulate "Traffic over time" by grouping by minute
+  const timeline = db.prepare(`
+    SELECT strftime('%H:%M', timestamp) as time, count(*) as count 
+    FROM requests 
+    GROUP BY time 
+    ORDER BY id DESC 
+    LIMIT 10
+  `).all().reverse(); // Reverse to show oldest -> newest
+
+  return {
+    total,
+    methods,
+    timeline
+  };
 });
 
 // ... start function ...

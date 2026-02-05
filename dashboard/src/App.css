@@ -1,42 +1,204 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* App.css - The "HookLoop" Hacker Theme */
+
+body {
+  background-color: #0d1117; /* GitHub Dark Dimmed */
+  color: #c9d1d9;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin-top: 40px;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+h1 {
+  color: #58a6ff; /* Neon Blue */
+  border-bottom: 2px solid #30363d;
+  padding-bottom: 15px;
+  margin-bottom: 10px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+p {
+  color: #8b949e;
+  font-size: 0.9rem;
+}
+
+code {
+  background-color: #161b22;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: #ff7b72; /* Soft Red */
+  font-family: 'Courier New', Courier, monospace;
 }
 
 .card {
-  padding: 2em;
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  overflow: hidden; /* Keeps child elements inside rounded corners */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
-.read-the-docs {
-  color: #888;
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  background-color: #21262d;
+  color: #f0f6fc;
+  text-align: left;
+  padding: 16px;
+  font-weight: 600;
+  border-bottom: 1px solid #30363d;
+}
+
+td {
+  padding: 16px;
+  border-bottom: 1px solid #30363d;
+  vertical-align: top;
+}
+
+tr:hover {
+  background-color: #21262d; /* Highlight row on hover */
+}
+
+/* The JSON Payload Box */
+pre {
+  background-color: #0d1117 !important; /* Force dark background */
+  color: #a5d6ff; /* Light Blue Text */
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #30363d;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* The Replay Button */
+button {
+  background-color: #238636; /* GitHub Green */
+  color: white;
+  border: 1px solid rgba(240, 246, 252, 0.1);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  background-color: #2ea043;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+button:disabled {
+  background-color: #30363d;
+  color: #8b949e;
+  cursor: not-allowed;
+  transform: none;
+}
+/* ... existing code ... */
+
+/* MODAL STYLES */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85); /* Dark dimming */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #161b22;
+  padding: 25px;
+  border-radius: 10px;
+  border: 1px solid #30363d;
+  width: 500px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+  color: #c9d1d9;
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  color: #58a6ff;
+}
+
+textarea {
+  width: 100%;
+  background-color: #0d1117;
+  color: #a5d6ff;
+  border: 1px solid #30363d;
+  border-radius: 5px;
+  padding: 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  resize: vertical;
+  margin-bottom: 20px;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: #58a6ff;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-cancel {
+  background-color: transparent;
+  border: 1px solid #30363d;
+  color: #8b949e;
+}
+
+.btn-cancel:hover {
+  background-color: #30363d;
+  color: white;
+}
+
+.btn-fire {
+  background-color: #1f6feb; /* Bright Blue */
+}
+
+.btn-fire:hover {
+  background-color: #388bfd;
+}
+/* Add this to App.css */
+
+.action-buttons {
+  display: flex;
+  gap: 8px; /* Space between buttons */
+}
+
+/* Specific Style for Replay Button (Blue) */
+.btn-replay {
+  background-color: #238636; /* GitHub Green */
+  color: white;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+.btn-replay:hover {
+  background-color: #2ea043;
+}
+
+/* Specific Style for Edit Button (Gray/Blue) */
+.btn-edit {
+  background-color: #1f6feb; /* GitHub Blue */
+  color: white;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+.btn-edit:hover {
+  background-color: #388bfd;
 }
