@@ -7,6 +7,7 @@ const axios = require('axios');
 const cors = require('@fastify/cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { Server } = require("socket.io");
 
 // 2. CONFIGURATION
 const db = new Database('hookloop.db'); // Initialize Database
@@ -93,16 +94,27 @@ fastify.post('/login', async (req, reply) => {
 // NEW: Unique URL for each user
 // Example: POST http://localhost:4000/webhook/5
 fastify.all('/webhook/:userId', async (request, reply) => {
-  const { userId } = request.params; // Get ID from URL
+  const { userId } = request.params;
   const { method, body, headers } = request;
 
   console.log(`📩 Webhook received for User ${userId}!`);
-
   const safeBody = redactPII(body || {}); 
 
-  // SAVE with the specific user_id
+  // 1. Save to DB
   const stmt = db.prepare('INSERT INTO requests (user_id, method, headers, body) VALUES (?, ?, ?, ?)');
-  stmt.run(userId, method, JSON.stringify(headers), JSON.stringify(safeBody));
+  const result = stmt.run(userId, method, JSON.stringify(headers), JSON.stringify(safeBody));
+
+  // 2. ⚡ REAL-TIME ALERT (Add this part!)
+  if (fastify.io) {
+    fastify.io.to(`user_${userId}`).emit('new_webhook', {
+      id: result.lastInsertRowid, // The ID of the new row
+      method,
+      headers,
+      body: safeBody,
+      // ✅ This matches SQLite's default string format
+      timestamp: new Date().toISOString().slice(0, 19).replace('T', ' ')
+    });
+  }
 
   return { status: 'received', for_user: userId };
 });
@@ -178,11 +190,35 @@ fastify.post('/replay/:id', async (request, reply) => {
   }
 });
 
-// 7. START SERVER
+// 7. START SERVER WITH SOCKET.IO
 const start = async () => {
   try {
+    // Start Fastify normally
     await fastify.listen({ port: 4000 });
     console.log('Server running on http://localhost:4000');
+
+    // Attach Socket.io to the Fastify server
+    const io = new Server(fastify.server, {
+      cors: {
+        origin: "*", // Allow React to connect from anywhere
+        methods: ["GET", "POST"]
+      }
+    });
+
+    // Make 'io' accessible globally (so we can use it in routes)
+    fastify.io = io;
+
+    // Listen for new connections
+    io.on('connection', (socket) => {
+      console.log('⚡ A client connected');
+
+      // Create a "Room" for each user (Security)
+      socket.on('join_room', (userId) => {
+        console.log(`🔒 User ${userId} joined their private room`);
+        socket.join(`user_${userId}`);
+      });
+    });
+
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
