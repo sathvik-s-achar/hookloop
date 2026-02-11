@@ -43,25 +43,32 @@ function App() {
   useEffect(() => {
     if (!token || !userId) return;
 
-    // Load initial data
-    fetchWebhooks();
+    // A. Load initial data when page opens
+    fetchWebhooks(); 
+    // (Make sure fetchWebhooks sets BOTH webhooks AND stats, 
+    // or call fetchStats() here if you separated them)
 
-    // Connect to Socket
+    // B. Connect to Socket
     const socket = io("http://localhost:4000");
-
-    // Join my private room
     socket.emit("join_room", userId);
 
-    // Listen for new webhooks
+    // C. Listen for new webhooks
     socket.on("new_webhook", (newHook) => {
-      console.log("⚡ Real-time update received!", newHook);
+      console.log("⚡ Real-time update received!");
       
-      // 1. Update the List (Keep this, it's fast)
+      // 1. Update the List (Instant Visual)
       setWebhooks((prev) => [newHook, ...prev]);
-
-      // 2. Re-fetch the Stats (This fixes the chart!)
-      // We need to move the stats fetching logic into its own function to call it here.
-      // See the step below for the cleaner way.
+      
+      // 2. Update the Charts (The Fix!) 📊
+      // We re-fetch the stats from the server so the charts redraw automatically
+      axios.get('http://localhost:4000/stats', { 
+        headers: { Authorization: `Bearer ${token}` } 
+      })
+      .then(res => {
+        console.log("📈 Stats updated:", res.data);
+        setStats(res.data);
+      })
+      .catch(err => console.error("Stats update failed", err));
     });
 
     return () => {
