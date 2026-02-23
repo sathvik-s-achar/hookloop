@@ -76,33 +76,67 @@ function App() {
     };
   }, [token, userId]);
 
+  const handleClearHistory = async () => {
+    // 1. Ask for confirmation so you don't click it by accident!
+    const isConfirmed = window.confirm("🚨 Are you sure you want to delete all webhook history? This cannot be undone.");
+    
+    if (!isConfirmed) return;
+
+    try {
+      // 2. Tell the backend to delete everything
+      await axios.delete('http://localhost:4000/webhooks'); // Add headers here if using JWT tokens!
+      
+      // 3. Clear the UI instantly
+      setWebhooks([]); 
+      
+      // 4. (Optional) Re-fetch stats to reset the charts to zero
+      // fetchStats(); 
+      
+      alert("🧹 Dashboard is completely clean!");
+    } catch (error) {
+      console.error("Failed to clear history", error);
+      alert("❌ Could not clear history.");
+    }
+  };
+
   // 3. HELPER FUNCTIONS
+// 1. The 1-Click "Quick Replay" Button
   const handleQuickReplay = async (id) => {
     setLoading(true);
     try {
-      await axios.post(`http://localhost:4000/replay/${id}`, { targetUrl: 'http://localhost:3000/events' });
-      alert(`✅ Quick Replay Sent!`);
-    } catch (error) { alert('❌ Replay Failed.'); }
+      // Changed /events to /receive to match our Demo App
+      await axios.post(`http://localhost:4000/replay/${id}`, { 
+        targetUrl: 'http://localhost:3000/receive' 
+      });
+      alert(`✅ Quick Replay Sent to Target App!`);
+    } catch (error) { 
+      alert('❌ Replay Failed.'); 
+    }
     setLoading(false);
   };
 
+  // 2. Opens the Edit UI (No changes needed here)
   const openEditModal = (hook) => {
     setSelectedHook(hook);
     setEditBody(JSON.stringify(hook.body, null, 2));
     setIsModalOpen(true);
   };
 
+  // 3. The "Fire Edited JSON" Button inside the Modal
   const handleFireEditedReplay = async () => {
     setLoading(true);
     try {
       let parsedBody = JSON.parse(editBody);
+      // Changed /events to /receive here too
       await axios.post(`http://localhost:4000/replay/${selectedHook.id}`, {
-        targetUrl: 'http://localhost:3000/events',
+        targetUrl: 'http://localhost:3000/receive',
         customBody: parsedBody
       });
-      alert(`✅ Edited Replay Sent!`);
+      alert(`✅ Edited Replay Sent to Target App!`);
       setIsModalOpen(false);
-    } catch (error) { alert('❌ Replay Failed or Invalid JSON.'); }
+    } catch (error) { 
+      alert('❌ Replay Failed or Invalid JSON.'); 
+    }
     setLoading(false);
   };
 
@@ -136,7 +170,18 @@ function App() {
   return (
     <div className="container">
       <div className="header-row" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-        <h1>HookLoop Dashboard</h1>
+        {/* <h1>HookLoop Dashboard</h1> */}
+        <div className="flex justify-between items-center mb-7">
+          <h1 className="text-2xl font-bold">🪝 HookLoop Dashboard</h1>
+          
+          {/* The Clear History Button */}
+          <button 
+            onClick={handleClearHistory}
+            className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded shadow"
+          >
+            🗑️ Clear History
+          </button>
+        </div>
         <button onClick={handleLogout} className="btn-edit" style={{background: '#da3633', border: 'none'}}>Logout</button>
       </div>
 

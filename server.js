@@ -171,23 +171,55 @@ fastify.get('/stats', async (req, reply) => {
   }
 });
 
+// WIPE ALL HISTORY ROUTE
+fastify.delete('/webhooks', async (req, reply) => {
+    try {
+        // Delete all rows from the requests table
+        db.prepare('DELETE FROM requests').run();
+        
+        console.log("🗑️ Database wiped clean!");
+        return { success: true, message: "All webhooks cleared!" };
+    } catch (error) {
+        console.error("Failed to clear database:", error);
+        return reply.code(500).send({ error: "Could not clear history." });
+    }
+});
+
 // REPLAY WEBHOOK
-fastify.post('/replay/:id', async (request, reply) => {
-  const { id } = request.params;
-  const { targetUrl, customBody } = request.body;
+fastify.post('/replay/:id', async (req, reply) => {
+    const { id } = req.params;
+    const { targetUrl, customBody } = req.body; // Getting the target destination from React!
 
-  const row = db.prepare('SELECT * FROM requests WHERE id = ?').get(id);
-  if (!row) return reply.code(404).send({ error: 'Webhook ID not found' });
+    // 1. Find the original webhook in the database
+    const row = db.prepare('SELECT * FROM requests WHERE id = ?').get(id);
+    
+    if (!row) {
+        return reply.code(404).send({ error: 'Webhook not found in database' });
+    }
 
-  try {
+    // 2. Decide what to send (Use edited JSON if it exists, otherwise use original)
     const payloadToSend = customBody ? customBody : JSON.parse(row.body);
-    const response = await axios.post(targetUrl, payloadToSend, {
-      headers: { 'Content-Type': 'application/json' }
-    });
-    return { status: 'replayed', targetStatus: response.status };
-  } catch (error) {
-    return reply.code(500).send({ error: error.message });
-  }
+
+    try {
+        console.log(`🚀 Forwarding replay to: ${targetUrl}`);
+
+        // 3. Act as a Proxy: Send the request to the Target App
+        // (Using Node's built-in fetch)
+        const forwardResponse = await fetch(targetUrl, {
+            method: row.method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payloadToSend)
+        });
+
+        const targetData = await forwardResponse.text();
+        console.log("✅ Target App replied:", targetData);
+
+        return { success: true, message: "Replayed successfully!" };
+        
+    } catch (error) {
+        console.error("❌ Proxy failed to reach Target URL:", error.message);
+        return reply.code(500).send({ error: "Could not reach the Target App." });
+    }
 });
 
 // 7. START SERVER WITH SOCKET.IO
