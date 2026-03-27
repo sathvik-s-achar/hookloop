@@ -13,8 +13,24 @@ const { Server } = require("socket.io");
 const db = new Database('hookloop.db'); // Initialize Database
 const SECRET_KEY = "super_secret_key_123"; // Change this in production
 
+// ==========================================
+// 🛡️ AUTHENTICATION MIDDLEWARE
+// ==========================================
+const authenticate = async (req, reply) => {
+  try {
+    const token = req.headers.authorization.split(' ')[1];
+    const decoded = jwt.verify(token, SECRET_KEY);
+    req.user = decoded; // Attach the user info to the request so routes can use it!
+  } catch (err) {
+    return reply.code(401).send({ error: 'Unauthorized' });
+  }
+};
+
 // Enable CORS so Frontend can talk to Backend
-fastify.register(cors, { origin: true });
+fastify.register(cors, { 
+    origin: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+});
 
 // 3. SECURITY UTILITY (PII Redaction)
 function redactPII(obj) {
@@ -33,7 +49,7 @@ function redactPII(obj) {
 
 // 4. DATABASE SETUP (Run once on start)
 const dbSetup = db.transaction(() => {
-  // Create USERS table
+  // 1. Create USERS table (Your existing code)
   db.prepare(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,7 +58,7 @@ const dbSetup = db.transaction(() => {
     )
   `).run();
 
-  // Create REQUESTS table
+  // 2. Create REQUESTS table (Your existing code)
   db.prepare(`
     CREATE TABLE IF NOT EXISTS requests (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,6 +67,20 @@ const dbSetup = db.transaction(() => {
       headers TEXT,
       body TEXT,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )
+  `).run();
+
+  // 3. Create MOCKS table (The NEW code! 🎭)
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS mocks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      path TEXT NOT NULL,
+      method TEXT NOT NULL,
+      status_code INTEGER DEFAULT 200,
+      response_body TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(user_id) REFERENCES users(id)
     )
   `).run();
@@ -220,6 +250,71 @@ fastify.post('/replay/:id', async (req, reply) => {
         console.error("❌ Proxy failed to reach Target URL:", error.message);
         return reply.code(500).send({ error: "Could not reach the Target App." });
     }
+});
+
+// ==========================================
+// 🎭 1. MOCK SERVER MANAGEMENT APIs (For the React Dashboard)
+// ==========================================
+
+// GET all mocks for the logged-in user
+fastify.get('/api/mocks', { preHandler: authenticate }, async (req, reply) => {
+  const mocks = db.prepare('SELECT * FROM mocks WHERE user_id = ? ORDER BY created_at DESC').all(req.user.id);
+  return reply.send(mocks);
+});
+
+// POST (Create) a new mock endpoint
+fastify.post('/api/mocks', { preHandler: authenticate }, async (req, reply) => {
+  const { path, method, status_code, response_body } = req.body;
+  
+  // Clean up the path (ensure it always starts with a '/')
+  const formattedPath = path.startsWith('/') ? path : '/' + path;
+
+  const info = db.prepare(`
+    INSERT INTO mocks (user_id, path, method, status_code, response_body) 
+    VALUES (?, ?, ?, ?, ?)
+  `).run(req.user.id, formattedPath, method.toUpperCase(), parseInt(status_code) || 200, response_body);
+  
+  return reply.send({ id: info.lastInsertRowid, success: true });
+});
+
+// DELETE a mock endpoint
+fastify.delete('/api/mocks/:id', { preHandler: authenticate }, async (req, reply) => {
+  db.prepare('DELETE FROM mocks WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
+  return reply.send({ success: true });
+});
+
+
+// ==========================================
+// 🌍 2. THE CATCH-ALL ENGINE (The actual fake server!)
+// ==========================================
+
+// Notice the wildcard '*' at the end! 
+// This catches anything sent to /mock/1/api/users, /mock/1/auth/login, etc.
+fastify.all('/mock/:userId/*', async (req, reply) => {
+  const userId = req.params.userId;
+  const targetPath = '/' + req.params['*']; // Extracts the route they actually wanted
+  const targetMethod = req.method;
+
+  // 1. Check if the developer created a mock for this specific path and method
+  const mock = db.prepare('SELECT * FROM mocks WHERE user_id = ? AND path = ? AND method = ?')
+                 .get(userId, targetPath, targetMethod);
+
+  // 2. If no mock is found, send a helpful 404 error
+  if (!mock) {
+      return reply.code(404).send({ 
+        error: "Mock Route Not Found",
+        details: `You have not created a ${targetMethod} mock for ${targetPath} in DevForge.`
+      });
+  }
+
+  // 3. If found, safely parse the JSON and return it with the custom status code!
+  try {
+      const parsedBody = JSON.parse(mock.response_body);
+      return reply.code(mock.status_code).send(parsedBody);
+  } catch (e) {
+      // Fallback: If they didn't type valid JSON, just send it as a plain text string
+      return reply.code(mock.status_code).send(mock.response_body);
+  }
 });
 
 // 7. START SERVER WITH SOCKET.IO
