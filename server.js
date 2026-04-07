@@ -204,11 +204,14 @@ fastify.get('/stats', async (req, reply) => {
 // WIPE ALL HISTORY ROUTE
 fastify.delete('/webhooks', async (req, reply) => {
     try {
-        // Delete all rows from the requests table
+        // 1. Delete all the actual data rows
         db.prepare('DELETE FROM requests').run();
         
-        console.log("🗑️ Database wiped clean!");
-        return { success: true, message: "All webhooks cleared!" };
+        // 2. Reset the internal ID counter back to 0
+        db.prepare("DELETE FROM sqlite_sequence WHERE name='requests'").run();
+        
+        console.log("🗑️ Database wiped clean and ID counter reset!");
+        return { success: true, message: "All webhooks cleared and counter reset!" };
     } catch (error) {
         console.error("Failed to clear database:", error);
         return reply.code(500).send({ error: "Could not clear history." });

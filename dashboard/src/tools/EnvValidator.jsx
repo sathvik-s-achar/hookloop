@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import Antigravity from '../components/Antigravity';
+import { Search, Bell, Settings, Plus, Key, Code, ShieldAlert, Copy, Trash2, ShieldCheck, Lock } from 'lucide-react';
 
 export default function EnvValidator() {
   const [envContent, setEnvContent] = useState('');
   const [issues, setIssues] = useState([]);
   const [parsedKeys, setParsedKeys] = useState([]);
 
-  // 🔐 Cryptographically Secure Secret Generator
   const generateSecret = (bytes = 32) => {
     const array = new Uint8Array(bytes);
     window.crypto.getRandomValues(array);
@@ -18,7 +19,6 @@ export default function EnvValidator() {
     setEnvContent(prev => prev ? prev + '\n' + newLine : newLine);
   };
 
-  // 🕵️‍♂️ Real-Time Validation Engine
   useEffect(() => {
     const lines = envContent.split('\n');
     const foundIssues = [];
@@ -27,51 +27,27 @@ export default function EnvValidator() {
 
     lines.forEach((line, index) => {
       const lineNum = index + 1;
-      const trimmed = line.trim();
-
-      // Skip empty lines and comments
+      const cleanLine = line.replace(/\r$/, '');
+      const trimmed = cleanLine.trimStart();
       if (!trimmed || trimmed.startsWith('#')) return;
 
       const equalIndex = trimmed.indexOf('=');
-      
-      // Rule 1: Must have an equals sign
-      if (equalIndex === -1) {
-        foundIssues.push({ line: lineNum, type: 'Error', message: 'Missing "=" sign.' });
-        return;
-      }
+      if (equalIndex === -1) { foundIssues.push({ line: lineNum, type: 'Error', message: 'Missing "=" sign.' }); return; }
 
       const key = trimmed.substring(0, equalIndex);
       const value = trimmed.substring(equalIndex + 1);
       const cleanKey = key.trim();
 
-      // Rule 2: Key formatting
-      if (key !== cleanKey) {
-        foundIssues.push({ line: lineNum, type: 'Error', message: 'Key has leading/trailing spaces before the "=".' });
-      }
-      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(cleanKey)) {
-        foundIssues.push({ line: lineNum, type: 'Warning', message: `"${cleanKey}" has unusual characters. Stick to UPPERCASE_AND_UNDERSCORES.` });
-      }
+      if (key !== cleanKey) foundIssues.push({ line: lineNum, type: 'Error', message: 'Key has spaces before the "=".' });
+      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(cleanKey)) foundIssues.push({ line: lineNum, type: 'Warning', message: `"${cleanKey}" has unusual characters.` });
+      
+      if (keysSeen.has(cleanKey)) foundIssues.push({ line: lineNum, type: 'Error', message: `Duplicate key: "${cleanKey}".` });
+      else if (cleanKey) keysSeen.add(cleanKey);
 
-      // Rule 3: Duplicate Keys
-      if (keysSeen.has(cleanKey)) {
-        foundIssues.push({ line: lineNum, type: 'Error', message: `Duplicate key found: "${cleanKey}". The server will only read the last one.` });
-      } else if (cleanKey) {
-        keysSeen.add(cleanKey);
-      }
-
-      // Rule 4: Spaces in unquoted values
-      if (value.includes(' ') && !value.startsWith('"') && !value.startsWith("'")) {
-        foundIssues.push({ line: lineNum, type: 'Warning', message: 'Value contains spaces but is not wrapped in quotes ("").' });
-      }
-
-      // Rule 5: Trailing spaces (The silent killer!)
       if (value !== value.trimEnd() && !value.endsWith('"') && !value.endsWith("'")) {
         foundIssues.push({ line: lineNum, type: 'Error', message: 'Hidden trailing spaces detected! This will break database connections.' });
       }
-
-      if (cleanKey && equalIndex !== -1) {
-          validPairs.push(cleanKey);
-      }
+      if (cleanKey && equalIndex !== -1) validPairs.push(cleanKey);
     });
 
     setIssues(foundIssues);
@@ -79,78 +55,190 @@ export default function EnvValidator() {
   }, [envContent]);
 
   return (
-    <div style={{ padding: '40px', color: '#f3f4f6', maxWidth: '1400px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '30px' }}>
-        <h2 style={{ fontSize: '2.5rem', marginBottom: '10px', color: '#fff' }}>⚙️ .env Validator & Generator</h2>
-        <p style={{ color: '#9ca3af', fontSize: '1.1rem' }}>Catch syntax errors, duplicate keys, and generate secure cryptographic tokens.</p>
+    
+<>
+      <style>
+        {`
+          .ev-generator-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+          }
+          .ev-main-workspace {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 30px;
+          }
+          
+          @media (max-width: 1024px) {
+            .ev-generator-cards {
+              grid-template-columns: repeat(2, 1fr);
+            }
+          }
+          
+          @media (max-width: 768px) {
+            .ev-generator-cards {
+              grid-template-columns: 1fr;
+            }
+            .ev-main-workspace {
+              grid-template-columns: 1fr;
+            }
+          }
+        `}
+      </style>
+    <div style={{ position: 'relative', width: '100%', minHeight: '100vh', overflow: 'hidden', backgroundColor: '#0B0B0C' }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
+        <Antigravity count={300} magnetRadius={6} ringRadius={7} waveSpeed={0.4} waveAmplitude={1} particleSize={1.5} lerpSpeed={0.05} color="#60A5FA" autoAnimate particleVariance={1} rotationSpeed={0} depthFactor={1} pulseSpeed={3} particleShape="capsule" fieldStrength={10} />
+      </div>
+      <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', padding: '60px 40px', color: '#FFFFFF', backgroundColor: 'rgba(11, 11, 12, 0.85)' }}>
+      {/* Header Section */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px' }}>
+        <div>
+          <h1 style={{ fontSize: '36px', fontWeight: '600', margin: '0 0 10px 0', letterSpacing: '-0.5px' }}>Env Validator</h1>
+          <p style={{ color: '#888', margin: 0, fontSize: '15px' }}>Catch syntax errors, duplicate keys, and generate secure tokens.</p>
+          <p style={{ color: '#888', margin: '5px 0 0 0', fontSize: '15px' }}>A precision instrument for environment configuration.</p>
+        </div>
+
       </div>
 
-      <div style={{ display: 'flex', gap: '30px' }}>
+      {/* Generator Cards */}
+      <div className="ev-generator-cards">
+        <div style={{ background: 'transparent',backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px', cursor: 'pointer' }} onClick={() => insertSecret('JWT_SECRET')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <span style={{ color: '#A78BFA', fontSize: '11px', fontWeight: '600', letterSpacing: '1px' }}>TOKEN GENERATOR</span>
+            <Plus size={16} color="#A78BFA" />
+          </div>
+          <h3 style={{ margin: '0 0 5px 0', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>+ JWT_SECRET</h3>
+          <p style={{ color: '#666', margin: 0, fontSize: '12px' }}>High-entropy HMAC-SHA256</p>
+        </div>
         
-        {/* ================= LEFT SIDE: EDITOR & GENERATOR ================= */}
-        <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
-          <div style={{ backgroundColor: '#161b22', padding: '20px', borderRadius: '12px', border: '1px solid #30363d' }}>
-            <h3 style={{ margin: '0 0 15px 0', color: '#c9d1d9', fontSize: '1rem' }}>🔐 Generate Secure Keys</h3>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => insertSecret('JWT_SECRET')} style={{ flex: 1, padding: '10px', backgroundColor: '#238636', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>+ JWT_SECRET</button>
-              <button onClick={() => insertSecret('SESSION_KEY')} style={{ flex: 1, padding: '10px', backgroundColor: '#8957e5', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>+ SESSION_KEY</button>
-              <button onClick={() => insertSecret('API_KEY')} style={{ flex: 1, padding: '10px', backgroundColor: '#1f6feb', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>+ API_KEY</button>
+        <div style={{ background: 'transparent',backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px', cursor: 'pointer' }} onClick={() => insertSecret('SESSION_KEY')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <span style={{ color: '#34D399', fontSize: '11px', fontWeight: '600', letterSpacing: '1px' }}>AUTH VAULT</span>
+            <Key size={16} color="#34D399" />
+          </div>
+          <h3 style={{ margin: '0 0 5px 0', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>+ SESSION_KEY</h3>
+          <p style={{ color: '#666', margin: 0, fontSize: '12px' }}>64-byte cryptographic string</p>
+        </div>
+
+        <div style={{ background: 'transparent',backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px', cursor: 'pointer' }} onClick={() => insertSecret('API_KEY')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <span style={{ color: '#60A5FA', fontSize: '11px', fontWeight: '600', letterSpacing: '1px' }}>API CORE</span>
+            <Code size={16} color="#60A5FA" />
+          </div>
+          <h3 style={{ margin: '0 0 5px 0', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>+ API_KEY</h3>
+          <p style={{ color: '#666', margin: 0, fontSize: '12px' }}>Prefix-based secure identifier</p>
+        </div>
+      </div>
+
+      {/* Main Workspace */}
+      <div className="ev-main-workspace">
+        
+        {/* Left Column: Editor */}
+        <div style={{ background: 'transparent',backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '600px' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(20, 20, 22, 0.5)' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#EF4444' }}></div>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#F59E0B' }}></div>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10B981' }}></div>
+              <span style={{ marginLeft: '15px', fontSize: '11px', color: '#666', letterSpacing: '1px' }}>ENVIRONMENT_EDITOR.ENV</span>
+            </div>
+            <div style={{ display: 'flex', gap: '15px' }}>
+              <Copy size={16} color="#666" style={{ cursor: 'pointer' }} onClick={() => navigator.clipboard.writeText(envContent)} />
+              <Trash2 size={16} color="#666" style={{ cursor: 'pointer' }} onClick={() => setEnvContent('')} />
             </div>
           </div>
-
-          <div style={{ backgroundColor: '#161b22', padding: '25px', borderRadius: '12px', border: '1px solid #30363d', flex: 1 }}>
-            <h3 style={{ margin: '0 0 15px 0', color: '#58a6ff' }}>📝 Environment Variables</h3>
-            <textarea 
-              value={envContent} 
-              onChange={(e) => setEnvContent(e.target.value)}
-              placeholder="# Paste your .env file here...&#10;PORT=4000&#10;DB_HOST=localhost"
-              spellCheck="false"
-              style={{ width: '100%', height: '400px', backgroundColor: '#0B0F19', color: '#e5c07b', padding: '15px', border: '1px solid #30363d', borderRadius: '6px', fontFamily: 'monospace', fontSize: '15px', resize: 'vertical', lineHeight: '1.5' }} 
-            />
+          <textarea 
+            value={envContent} 
+            onChange={(e) => setEnvContent(e.target.value)}
+            placeholder="Paste your .env file here...\nPORT=3000\nDB_HOST=localhost\nDEBUG=true"
+            spellCheck="false"
+            style={{ flex: 1, background: 'transparent', color: '#E0E0E0', padding: '20px', border: 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: '14px', outline: 'none', resize: 'none', lineHeight: '1.6', wordBreak: 'break-all', whiteSpace: 'pre-wrap' }} 
+          />
+          <div style={{ padding: '10px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(20, 20, 22, 0.5)', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#666' }}>
+            <span>UTF-8</span>
+            <span>Line {envContent.split('\n').length}, Col 1</span>
           </div>
         </div>
 
-        {/* ================= RIGHT SIDE: VALIDATION ENGINE ================= */}
-        <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Right Column: Diagnostics */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
-          <div style={{ backgroundColor: '#161b22', padding: '25px', borderRadius: '12px', border: `1px solid ${issues.length > 0 ? '#f85149' : '#30363d'}`, minHeight: '200px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #30363d', paddingBottom: '15px', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, color: '#c9d1d9' }}>🕵️‍♂️ Diagnostic Report</h3>
-              {envContent.trim() !== '' && issues.length === 0 && (
-                <span style={{ color: '#3fb950', fontWeight: 'bold', backgroundColor: '#2ea04326', padding: '4px 12px', borderRadius: '12px', fontSize: '0.9rem' }}>✅ Clean</span>
-              )}
+          {/* Status Panel */}
+          <div style={{ background: 'transparent',backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '25px' }}>
+            <h3 style={{ margin: '0 0 25px 0', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: envContent ? (issues.length > 0 ? '#EF4444' : '#10B981') : '#666', boxShadow: `0 0 10px ${envContent ? (issues.length > 0 ? '#EF4444' : '#10B981') : '#666'}` }}></div>
+              Diagnostic Status
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed rgba(255,255,255,0.05)', paddingBottom: '10px' }}>
+                <span style={{ color: '#888', fontSize: '13px' }}>System Status</span>
+                <span style={{ color: envContent ? (issues.length > 0 ? '#EF4444' : '#10B981') : '#666', fontSize: '13px', fontFamily: "'JetBrains Mono', monospace" }}>{envContent ? (issues.length > 0 ? `${issues.length} Issues` : 'All Clear') : 'Awaiting input...'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed rgba(255,255,255,0.05)', paddingBottom: '10px' }}>
+                <span style={{ color: '#888', fontSize: '13px' }}>Syntax Health</span>
+                <span style={{ color: '#E0E0E0', fontSize: '13px' }}>{envContent ? (issues.length > 0 ? 'Poor' : 'Excellent') : '---'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#888', fontSize: '13px' }}>Security Risk</span>
+                <span style={{ color: '#E0E0E0', fontSize: '13px' }}>{envContent ? 'Low' : '---'}</span>
+              </div>
             </div>
+            
+            <button style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: '#FFF', border: '1px solid rgba(255,255,255,0.1)', padding: '12px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }}>
+              <Search size={14} /> Deep Scan
+            </button>
+          </div>
 
-            {envContent.trim() === '' ? (
-              <div style={{ color: '#6b7280', textAlign: 'center', marginTop: '40px', fontFamily: 'monospace' }}>Awaiting input...</div>
-            ) : issues.length === 0 ? (
-              <div style={{ color: '#3fb950', textAlign: 'center', marginTop: '40px' }}>No syntax errors or hidden trailing spaces found! Your file is safe to deploy.</div>
-            ) : (
+          {/* Detected Keys / Issues Panel */}
+          <div style={{ background: 'transparent',backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '25px', flex: 1, overflowY: 'auto' }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '16px' }}>{issues.length > 0 ? 'Diagnostic Issues' : 'Detected Keys'}</h3>
+            
+            {issues.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {issues.map((issue, idx) => (
-                  <div key={idx} style={{ backgroundColor: issue.type === 'Error' ? '#f851491a' : '#d299221a', borderLeft: `4px solid ${issue.type === 'Error' ? '#f85149' : '#d29922'}`, padding: '12px 15px', borderRadius: '0 6px 6px 0', color: '#c9d1d9', fontSize: '0.95rem' }}>
-                    <strong style={{ color: issue.type === 'Error' ? '#ff7b72' : '#e3b341' }}>Line {issue.line}:</strong> {issue.message}
+                  <div key={idx} style={{ background: issue.type === 'Warning' ? 'rgba(245, 158, 11, 0.05)' : 'rgba(239, 68, 68, 0.05)', border: `1px solid ${issue.type === 'Warning' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`, borderRadius: '8px', padding: '15px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                      <ShieldAlert size={14} color={issue.type === 'Warning' ? "#F59E0B" : "#EF4444"} />
+                      <span style={{ color: issue.type === 'Warning' ? "#F59E0B" : "#EF4444", fontSize: '11px', fontWeight: '600', letterSpacing: '1px' }}>{issue.type.toUpperCase()} LINE {issue.line}</span>
+                    </div>
+                    <p style={{ color: '#E0E0E0', margin: 0, fontSize: '13px' }}>{issue.message}</p>
                   </div>
                 ))}
               </div>
+            ) : parsedKeys.length > 0 ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                {parsedKeys.map((key, idx) => {
+                  let type = "LOCAL";
+                  let color = "#888";
+                  let Icon = Lock;
+                  if (key.includes('PROD') || key.includes('ENV')) { type = "PRODUCTION"; color = "#A78BFA"; Icon = ShieldCheck; }
+                  if (key.includes('SECRET') || key.includes('PASSWORD') || key.includes('KEY')) { type = "SECURITY LEAK"; color = "#EF4444"; Icon = ShieldAlert; }
+                  
+                  return (
+                    <div key={idx} style={{ background: 'transparent',backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: '#FFF', fontSize: '12px', fontFamily: "'JetBrains Mono', monospace" }}>{key}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '150px', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+                <Search size={24} color="#444" style={{ marginBottom: '10px' }} />
+                <span style={{ color: '#666', fontSize: '12px' }}>New keys will appear here</span>
+              </div>
             )}
-          </div>
-
-          {/* Active Keys Overview */}
-          <div style={{ backgroundColor: '#161b22', padding: '25px', borderRadius: '12px', border: '1px solid #30363d', flex: 1 }}>
-             <h3 style={{ margin: '0 0 15px 0', color: '#8b949e', fontSize: '1rem' }}>Detected Keys ({parsedKeys.length})</h3>
-             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-               {parsedKeys.map((key, idx) => (
-                 <span key={idx} style={{ backgroundColor: '#1f2937', color: '#58a6ff', padding: '6px 12px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                   {key}
-                 </span>
-               ))}
-             </div>
           </div>
 
         </div>
       </div>
     </div>
+    </div>
+    
+    </>
+  
+    
   );
 }

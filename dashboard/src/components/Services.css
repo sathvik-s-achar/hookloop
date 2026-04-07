@@ -1,0 +1,133 @@
+/* Services.css */
+
+.aux-services-section {
+  background-color: #0b0b0d; /* Deep dark background */
+  color: #f4f4f5;
+  padding: 100px 20px;
+  font-family: 'Helvetica Neue', Inter, Arial, sans-serif;
+}
+
+.aux-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.aux-header {
+  margin-bottom: 80px;
+  max-width: 800px;
+}
+
+.aux-title {
+  font-size: 4rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0 0 24px 0;
+  letter-spacing: -0.03em;
+}
+
+.aux-subtitle {
+  font-size: 1.5rem;
+  color: #a1a1aa;
+  line-height: 1.4;
+  margin: 0;
+  font-weight: 300;
+}
+
+.aux-services-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Individual Service Row */
+.aux-service-card {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: 40px;
+  padding: 40px 0;
+  border-top: 1px solid #27272a;
+  transition: all 0.3s ease;
+  align-items: start;
+}
+
+.aux-service-card:hover {
+  border-top-color: #f4f4f5; /* Highlight border on hover */
+}
+
+.aux-service-number {
+  font-size: 1.25rem;
+  font-family: monospace; /* Gives that technical <01> look */
+  color: #a1a1aa;
+  padding-top: 5px;
+}
+
+.aux-service-content {
+  max-width: 600px;
+}
+
+.aux-service-title {
+  font-size: 2rem;
+  font-weight: 500;
+  margin: 0 0 16px 0;
+  letter-spacing: -0.02em;
+}
+
+.aux-service-desc {
+  font-size: 1.125rem;
+  color: #a1a1aa;
+  line-height: 1.6;
+  margin: 0;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+}
+
+/* Reveal description on hover */
+.aux-service-card:hover .aux-service-desc {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.aux-service-action {
+  padding-top: 5px;
+}
+
+.aux-btn {
+  background: transparent;
+  color: #f4f4f5;
+  border: 1px solid #3f3f46;
+  padding: 12px 24px;
+  font-size: 1rem;
+  border-radius: 40px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.aux-btn:hover {
+  background: #f4f4f5;
+  color: #0b0b0d;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .aux-title {
+    font-size: 2.5rem;
+  }
+  
+  .aux-subtitle {
+    font-size: 1.25rem;
+  }
+
+  .aux-service-card {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .aux-service-desc {
+    opacity: 1; /* Always show description on mobile */
+    transform: none;
+  }
+
+  .aux-service-number {
+    display: none; /* Hide numbers on small screens to save space */
+  }
+}
