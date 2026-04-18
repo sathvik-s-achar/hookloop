@@ -1,0 +1,13 @@
+[
+  {
+    "route": "api/datacenter/status",
+    "method": "ALL",
+    "priority": 1,
+    "errorRate": 57,
+    "latency": 3000,
+    "mutateReq": false,
+    "mutateRes": false,
+    "active": true,
+    "id": 1776071597138
+  }
+]

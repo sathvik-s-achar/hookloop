@@ -218,40 +218,61 @@ fastify.delete('/webhooks', async (req, reply) => {
     }
 });
 
-// REPLAY WEBHOOK
+// REPLAY WEBHOOK (Protected - Needs Login)
 fastify.post('/replay/:id', async (req, reply) => {
     const { id } = req.params;
-    const { targetUrl, customBody } = req.body; // Getting the target destination from React!
+    const { targetUrl, customBody } = req.body; 
 
-    // 1. Find the original webhook in the database
+    // 1. Find the original webhook
     const row = db.prepare('SELECT * FROM requests WHERE id = ?').get(id);
-    
     if (!row) {
         return reply.code(404).send({ error: 'Webhook not found in database' });
     }
 
-    // 2. Decide what to send (Use edited JSON if it exists, otherwise use original)
+    // 2. Prepare Payload
     const payloadToSend = customBody ? customBody : JSON.parse(row.body);
+
+    // 3. Prepare Headers (CRITICAL: Forward the original security signatures)
+    let originalHeaders = {};
+    try {
+        originalHeaders = JSON.parse(row.headers);
+        // Remove 'host' so it doesn't confuse the new target server
+        delete originalHeaders['host']; 
+        // Ensure Content-Type is correct if we mutated the body
+        originalHeaders['content-type'] = 'application/json';
+    } catch (e) {
+        console.warn("Could not parse original headers, using default.");
+        originalHeaders = { 'Content-Type': 'application/json' };
+    }
 
     try {
         console.log(`🚀 Forwarding replay to: ${targetUrl}`);
 
-        // 3. Act as a Proxy: Send the request to the Target App
-        // (Using Node's built-in fetch)
+        // 4. Fire the Proxy Request
         const forwardResponse = await fetch(targetUrl, {
             method: row.method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payloadToSend)
+            headers: originalHeaders,
+            body: typeof payloadToSend === 'string' ? payloadToSend : JSON.stringify(payloadToSend)
         });
 
         const targetData = await forwardResponse.text();
-        console.log("✅ Target App replied:", targetData);
 
-        return { success: true, message: "Replayed successfully!" };
+        // 5. Catch HTTP Errors (4xx, 5xx) that fetch ignores
+        if (!forwardResponse.ok) {
+            console.error(`⚠️ Target App rejected the replay with status: ${forwardResponse.status}`);
+            return reply.code(forwardResponse.status).send({ 
+                error: `Target App rejected request (${forwardResponse.status})`,
+                details: targetData 
+            });
+        }
+
+        console.log("✅ Target App accepted replay:", targetData);
+        return { success: true, status: forwardResponse.status, message: "Replayed successfully!" };
         
     } catch (error) {
+        // This only catches true network failures (ECONNREFUSED)
         console.error("❌ Proxy failed to reach Target URL:", error.message);
-        return reply.code(500).send({ error: "Could not reach the Target App." });
+        return reply.code(503).send({ error: "Could not reach the Target App. Is it running?" });
     }
 });
 

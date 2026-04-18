@@ -16,6 +16,50 @@ export default function HookLoop({ token }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editBody, setEditBody] = useState('');
   const [latencyList, setLatencyList] = useState([]);
+  const [webhookSecret, setWebhookSecret] = useState('');
+  const [signatureStatus, setSignatureStatus] = useState('none');
+  const [targetUrl, setTargetUrl] = useState('http://localhost:5001/api/webhooks/stripe');
+
+  useEffect(() => {
+    const verifySignature = async () => {
+      if (!selectedHook || !webhookSecret) {
+        setSignatureStatus('none');
+        return;
+      }
+      try {
+        const encoder = new TextEncoder();
+        const key = await crypto.subtle.importKey(
+          'raw',
+          encoder.encode(webhookSecret),
+          { name: 'HMAC', hash: 'SHA-256' },
+          false,
+          ['sign']
+        );
+        const bodyStr = typeof selectedHook.body === 'string' ? selectedHook.body : JSON.stringify(selectedHook.body);
+        const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(bodyStr));
+        const signatureArray = Array.from(new Uint8Array(signatureBuffer));
+        const signatureHex = signatureArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        
+        const incomingSig = selectedHook.headers?.['x-signature'] || selectedHook.headers?.['x-hub-signature-256'] || selectedHook.headers?.['signature'] || selectedHook.headers?.['X-Signature'];
+        
+        if (!incomingSig) {
+          setSignatureStatus('none');
+          return;
+        }
+        
+        const cleanIncoming = incomingSig.replace('sha256=', '');
+        if (cleanIncoming === signatureHex) {
+          setSignatureStatus('verified');
+        } else {
+          setSignatureStatus('forged');
+        }
+      } catch (err) {
+        console.error(err);
+        setSignatureStatus('forged');
+      }
+    };
+    verifySignature();
+  }, [selectedHook, webhookSecret]);
 
   useEffect(() => {
     if (token) {
@@ -51,7 +95,8 @@ export default function HookLoop({ token }) {
     const socket = io("http://localhost:4000");
     socket.emit("join_room", userId);
     socket.on("new_webhook", (newHook) => {
-      const hookTime = new Date(newHook.timestamp.includes('Z') ? newHook.timestamp : newHook.timestamp + 'Z').getTime();
+      const ts = newHook.timestamp || new Date().toISOString();
+      const hookTime = new Date(ts.includes('Z') ? ts : ts + 'Z').getTime();
       const lat = Math.max(2, Date.now() - hookTime); // real-time pseudo latency computation
       setLatencyList(prev => [...prev.slice(-19), lat]); // retain rolling memory 
 
@@ -77,7 +122,7 @@ export default function HookLoop({ token }) {
   const handleQuickReplay = async (id, overrideBody = null) => {
     setLoading(true);
     try {
-      const payload = { targetUrl: 'http://localhost:3000/receive' };
+      const payload = { targetUrl };
       if (overrideBody) payload.overrideBody = overrideBody;
       
       await axios.post(`http://localhost:4000/replay/${id}`, payload, { headers: { Authorization: `Bearer ${token}` }});
@@ -87,8 +132,10 @@ export default function HookLoop({ token }) {
 
   const filteredWebhooks = webhooks.filter((hook) => {
     const searchLower = searchTerm.toLowerCase();
-    const bodyString = JSON.stringify(hook.body).toLowerCase();
-    return hook.method.toLowerCase().includes(searchLower) || hook.id.toString().includes(searchLower) || bodyString.includes(searchLower);
+    const bodyString = JSON.stringify(hook.body || {}).toLowerCase();
+    const methodStr = (hook.method || '').toLowerCase();
+    const idStr = (hook.id || hook._id || '').toString().toLowerCase();
+    return methodStr.includes(searchLower) || idStr.includes(searchLower) || bodyString.includes(searchLower);
   });
 
   const chartData = useMemo(() => {
@@ -98,7 +145,10 @@ export default function HookLoop({ token }) {
       return { data: defaultData, maxCount: 0 };
     }
     
-    const times = webhooks.map(h => new Date(h.timestamp.includes('Z') ? h.timestamp : h.timestamp + 'Z').getTime());
+    const times = webhooks.map(h => {
+      const ts = h.timestamp || new Date().toISOString();
+      return new Date(ts.includes('Z') ? ts : ts + 'Z').getTime();
+    });
     let maxTime = Math.max(...times);
     let minTime = Math.min(...times);
     
@@ -611,6 +661,15 @@ export default function HookLoop({ token }) {
             border-color: rgba(139, 92, 246, 0.3);
           }
           .hl-btn-action.edit:hover { background: rgba(139, 92, 246, 0.25); }
+
+          .hl-btn-action.chaos { background: rgba(245, 158, 11, 0.15); color: #FCD34D; border-color: rgba(245, 158, 11, 0.3); }
+          .hl-btn-action.chaos:hover { background: rgba(245, 158, 11, 0.25); }
+          .hl-btn-action.diff { background: rgba(59, 130, 246, 0.15); color: #93C5FD; border-color: rgba(59, 130, 246, 0.3); }
+          .hl-btn-action.diff:hover { background: rgba(59, 130, 246, 0.25); }
+
+          .sig-badge { margin-left: 8px; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; }
+          .sig-verified { background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); }
+          .sig-forged { background: rgba(239, 68, 68, 0.2); color: #EF4444; border: 1px solid rgba(239, 68, 68, 0.3); }
         `}</style>
 
         <div className="hookloop-layout">
@@ -650,6 +709,24 @@ export default function HookLoop({ token }) {
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(255, 255, 255, 0.03)', padding: '6px 12px', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '6px' }}>
                   <span style={{ fontSize: '0.75rem', color: '#8B8B9B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Your Unique Endpoint</span>
                   <code style={{ color: '#10B981', fontSize: '0.85rem', fontFamily: 'monospace' }}>http://localhost:4000/webhook/{userId || '...'}</code>
+                </div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(11, 11, 12, 0.5)', padding: '6px 12px', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '6px', marginLeft: '12px' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#8B8B9B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Replay Target URL</span>
+                  <input 
+                    type="text" 
+                    value={targetUrl}
+                    onChange={e => setTargetUrl(e.target.value)}
+                    placeholder="Enter target URL..."
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#A5D6FF',
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                      width: '300px'
+                    }}
+                  />
                 </div>
               </div>
               
@@ -755,21 +832,22 @@ export default function HookLoop({ token }) {
                     <tbody>
                       {filteredWebhooks.map((hook, idx) => (
                         <tr 
-                          key={hook.id} 
-                          className={`hl-row ${selectedHook?.id === hook.id ? 'selected' : ''}`}
+                          key={hook.id || hook._id || idx} 
+                          className={`hl-row ${(selectedHook?.id || selectedHook?._id) === (hook.id || hook._id) ? 'selected' : ''}`}
                           onClick={() => setSelectedHook(hook)}
                         >
                           <td style={{ fontFamily: 'monospace', color: '#A1A1AA' }}>
-                            tr_92k_{String(hook.id).substring(0,4)}
+                            tr_92k_{String(hook.id || hook._id || idx).substring(0,4)}
                           </td>
                           <td>
-                            <span className={hook.method === 'POST' ? 'hl-badge-post' : 'hl-badge-get'}>
-                              {hook.method}
+                            <span className={(hook.method === 'POST' || hook.method === 'post') ? 'hl-badge-post' : 'hl-badge-get'}>
+                              {hook.method || 'GET'}
                             </span>
                           </td>
                           <td style={{ color: '#8B8B9B', fontFamily: 'monospace' }}>
                             {(() => {
-                              const d = new Date(hook.timestamp.includes('Z') ? hook.timestamp : hook.timestamp + 'Z');
+                              const ts = hook.timestamp || new Date().toISOString();
+                              const d = new Date(ts.includes('Z') ? ts : ts + 'Z');
                               let hours = d.getHours();
                               const minutes = d.getMinutes().toString().padStart(2, '0');
                               const seconds = d.getSeconds().toString().padStart(2, '0');
@@ -785,7 +863,7 @@ export default function HookLoop({ token }) {
                       {filteredWebhooks.length === 0 && (
                         <tr>
                           <td colSpan="4" style={{ textAlign: 'center', color: '#6B7280', padding: '40px' }}>
-                            Awaiting incoming webhooks...
+                            {webhooks.length > 0 ? "No webhooks match your search filter." : "Awaiting incoming webhooks..."}
                           </td>
                         </tr>
                       )}
@@ -795,26 +873,43 @@ export default function HookLoop({ token }) {
               </div>
 
               <div className="hl-panel-box">
-                <div className="hl-panel-header">
-                  <span className="hl-panel-title" style={{ color: '#8B8B9B', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <span>Payload: <span style={{ color: '#E2E8F0', fontFamily: 'monospace' }}>
-                      {selectedHook ? `tr_92k_${String(selectedHook.id).substring(0,4)}` : '---'}
-                    </span></span>
+                <div className="hl-panel-header" style={{ flexWrap: 'wrap', gap: '12px' }}>
+                  <span className="hl-panel-title" style={{ color: '#8B8B9B', display: 'flex', alignItems: 'center', gap: '16px', width: '100%', justifyContent: 'space-between' }}>
+                    <span style={{ display: 'flex', alignItems: 'center' }}>Payload: <span style={{ color: '#E2E8F0', fontFamily: 'monospace', marginLeft: '6px' }}>
+                      {selectedHook ? `tr_92k_${String(selectedHook.id || selectedHook._id).substring(0,4)}` : '---'}
+                    </span>
+                    {signatureStatus === 'verified' && <span className="sig-badge sig-verified">[VERIFIED]</span>}
+                    {signatureStatus === 'forged' && <span className="sig-badge sig-forged">[FORGED]</span>}
+                    </span>
                     
                     {selectedHook && (
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <button className="hl-btn-action edit" onClick={() => { 
-                          setEditBody(JSON.stringify(selectedHook.body, null, 2)); 
+                          setEditBody(JSON.stringify(selectedHook.body || {}, null, 2)); 
                           setIsModalOpen(true); 
                         }}>Edit</button>
-                        <button className="hl-btn-action replay" onClick={() => handleQuickReplay(selectedHook.id)} disabled={loading}>Replay</button>
+                        <button className="hl-btn-action replay" onClick={() => handleQuickReplay(selectedHook.id || selectedHook._id)} disabled={loading}>Replay</button>
                       </div>
                     )}
                   </span>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#EF4444' }}></div>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B' }}></div>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8B5CF6' }}></div>
+                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                    <span style={{ fontSize: '0.7rem', color: '#8B8B9B', textTransform: 'uppercase' }}>HMAC Secret:</span>
+                    <input 
+                      type="password"
+                      placeholder="Enter secret to verify signature..."
+                      value={webhookSecret}
+                      onChange={e => setWebhookSecret(e.target.value)}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        color: '#E2E8F0',
+                        fontSize: '0.75rem',
+                        outline: 'none',
+                        flex: 1
+                      }}
+                    />
                   </div>
                 </div>
                 <div className="hl-payload-content">
@@ -864,7 +959,7 @@ export default function HookLoop({ token }) {
                   <button className="btn-fire" onClick={() => {
                      try {
                        const parsed = JSON.parse(editBody);
-                       handleQuickReplay(selectedHook.id, parsed).then(() => {
+                       handleQuickReplay(selectedHook.id || selectedHook._id, parsed).then(() => {
                          setIsModalOpen(false);
                        }).catch(() => alert('Replay Failed.'));
                      } catch(e) {

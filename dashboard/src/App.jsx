@@ -79,8 +79,9 @@ import HookLoop from './tools/HookLoop';
 import MockServer from './tools/MockServer';
 import EnvValidator from './tools/EnvValidator';
 import JwtDecoder from './tools/JwtDecoder';
-import RequestForge from './tools/RequestForge';
 import SchemaForge from './tools/SchemaForge';
+import ChaosProxy from './tools/ChaosProxy';
+import DiffForge from './tools/DiffForge';
 import DotGrid from './components/DotGrid';
 import ClickSpark from './components/ClickSpark';
 
@@ -346,12 +347,13 @@ export default function App() {
             <div className="nav-group-title">Observability</div>
             <SidebarLink to="/" icon="⚡" label="Traffic Inspector" onClick={() => setIsMobileMenuOpen(false)} />
             <SidebarLink to="/mock" icon="🎭" label="API Synthesizer" onClick={() => setIsMobileMenuOpen(false)} />
-            <SidebarLink to="/forge" icon="🚀" label="Request Forge" onClick={() => setIsMobileMenuOpen(false)} />
+            <SidebarLink to="/chaos" icon="🌩️" label="Chaos Proxy" onClick={() => setIsMobileMenuOpen(false)} />
 
             <div className="nav-group-title">Security & Utilities</div>
             <SidebarLink to="/env" icon="🔐" label="Env Validator" onClick={() => setIsMobileMenuOpen(false)} />
             <SidebarLink to="/jwt" icon="🎫" label="JWT Decoder" onClick={() => setIsMobileMenuOpen(false)} />
             <SidebarLink to="/schema" icon="🏗️" label="Schema Forge" onClick={() => setIsMobileMenuOpen(false)} />
+            <SidebarLink to="/diffforge" icon="📝" label="Diff Forge" onClick={() => setIsMobileMenuOpen(false)} />
           </nav>
           
           <div className="sidebar-footer">
@@ -366,9 +368,10 @@ export default function App() {
           <Routes>
             <Route path="/" element={<HookLoop token={token} />} />
             <Route path="/mock" element={<MockServer token={token} />} />
-            <Route path="/forge" element={<RequestForge />} />
+            <Route path="/chaos" element={<ChaosProxy />} />
             <Route path="/jwt" element={<JwtDecoder />} />
             <Route path="/schema" element={<SchemaForge />} />
+            <Route path="/diffforge" element={<DiffForge />} />
             <Route path="/env" element={<EnvValidator />} />
           </Routes>
         </main>
