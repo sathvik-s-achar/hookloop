@@ -2,7 +2,6 @@
 // import MockServer from './tools/MockServer';
 // import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 // import './App.css'; // Make sure this is imported!
-// import EnvValidator from './tools/EnvValidator';
 // import Services from './components/Services';
 
 // // Import your tools
@@ -38,7 +37,7 @@
 //             <div className="nav-category">Network Tools</div>
 //             <SidebarLink to="/" icon="🪝" label="HookLoop" />
 //             <SidebarLink to="/mock" icon="🎭" label="API Mock Server" />
-//             <SidebarLink to="/env" icon="⚙️" label=".env Validator" />
+
             
 //             <div className="nav-category" style={{marginTop: '25px'}}>Utilities</div>
 //             <SidebarLink to="/jwt" icon="🔐" label="JWT Decoder" />
@@ -60,8 +59,6 @@
 
 //             {/* Placeholder for Mock Server */}
 //             <Route path="/mock" element={<MockServer />} />
-
-//             <Route path="/env" element={<EnvValidator />} />
 //           </Routes>
 //         </div>
 
@@ -77,7 +74,6 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import Login from './Login'; 
 import HookLoop from './tools/HookLoop';
 import MockServer from './tools/MockServer';
-import EnvValidator from './tools/EnvValidator';
 import JwtDecoder from './tools/JwtDecoder';
 import SchemaForge from './tools/SchemaForge';
 import ChaosProxy from './tools/ChaosProxy';
@@ -350,7 +346,6 @@ export default function App() {
             <SidebarLink to="/chaos" icon="🌩️" label="Chaos Proxy" onClick={() => setIsMobileMenuOpen(false)} />
 
             <div className="nav-group-title">Security & Utilities</div>
-            <SidebarLink to="/env" icon="🔐" label="Env Validator" onClick={() => setIsMobileMenuOpen(false)} />
             <SidebarLink to="/jwt" icon="🎫" label="JWT Decoder" onClick={() => setIsMobileMenuOpen(false)} />
             <SidebarLink to="/schema" icon="🏗️" label="Schema Forge" onClick={() => setIsMobileMenuOpen(false)} />
             <SidebarLink to="/diffforge" icon="📝" label="Diff Forge" onClick={() => setIsMobileMenuOpen(false)} />
@@ -372,7 +367,6 @@ export default function App() {
             <Route path="/jwt" element={<JwtDecoder />} />
             <Route path="/schema" element={<SchemaForge />} />
             <Route path="/diffforge" element={<DiffForge />} />
-            <Route path="/env" element={<EnvValidator />} />
           </Routes>
         </main>
       </div>
