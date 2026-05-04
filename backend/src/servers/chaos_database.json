@@ -1,0 +1,35 @@
+[
+  {
+    "route": "api/datacenter/status",
+    "method": "ALL",
+    "priority": 1,
+    "errorRate": 35,
+    "latency": 106,
+    "mutateReq": false,
+    "mutateRes": false,
+    "active": true,
+    "id": 1777227743799
+  },
+  {
+    "route": "api/datacenter/status",
+    "method": "ALL",
+    "priority": 1,
+    "errorRate": 35,
+    "latency": 106,
+    "mutateReq": false,
+    "mutateRes": false,
+    "active": true,
+    "id": 1777227753414
+  },
+  {
+    "route": "api/datacenter/status",
+    "method": "ALL",
+    "priority": 1,
+    "errorRate": 35,
+    "latency": 200,
+    "mutateReq": false,
+    "mutateRes": false,
+    "active": true,
+    "id": 1777227773731
+  }
+]
