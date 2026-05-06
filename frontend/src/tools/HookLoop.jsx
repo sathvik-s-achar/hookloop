@@ -7,6 +7,9 @@ import JsonView from '../JsonView';
 import Antigravity from '../components/Antigravity';
 import { Search, Bell, User, Trash2, BarChart2, CheckCircle2, Clock } from 'lucide-react';
 import CountUp from '../components/CountUp';
+import ConfirmModal from '../components/ConfirmModal';
+import toast from 'react-hot-toast';
+
 export default function HookLoop({ token }) { 
   const [userId, setUserId] = useState(null);
   const [webhooks, setWebhooks] = useState([]);
@@ -14,6 +17,7 @@ export default function HookLoop({ token }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedHook, setSelectedHook] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
   const [editBody, setEditBody] = useState('');
   const [latencyList, setLatencyList] = useState([]);
   const [webhookSecret, setWebhookSecret] = useState('');
@@ -110,13 +114,23 @@ export default function HookLoop({ token }) {
     
   }, [token, userId]);
 
-  const handleClearHistory = async () => {
-    if (!window.confirm("Delete all captured traffic?")) return;
-    try {
-      await axios.delete('http://localhost:4000/webhooks', { headers: { Authorization: `Bearer ${token}` }}); 
-      setWebhooks([]); 
-      setSelectedHook(null);
-    } catch (error) { alert("Failed to clear data."); }
+  const handleClearHistory = () => {
+    setConfirmAction({
+      title: "Confirm Purge",
+      message: "Are you sure you want to purge all logs? This action cannot be undone.",
+      confirmText: "Confirm Purge",
+      onConfirm: async () => {
+        try {
+          await axios.delete('http://localhost:4000/webhooks', { headers: { Authorization: `Bearer ${token}` }}); 
+          setWebhooks([]); 
+          setSelectedHook(null);
+          toast.success("Logs Purged");
+        } catch (error) { 
+          toast.error("Operation Failed"); 
+        }
+        setConfirmAction(null);
+      }
+    });
   };
 
   const handleQuickReplay = async (id, overrideBody = null) => {
@@ -126,7 +140,7 @@ export default function HookLoop({ token }) {
       if (overrideBody) payload.overrideBody = overrideBody;
       
       await axios.post(`http://localhost:4000/replay/${id}`, payload, { headers: { Authorization: `Bearer ${token}` }});
-    } catch (error) { alert('Replay Failed.'); }
+    } catch (error) { toast.error('Replay Failed.'); }
     setLoading(false);
   };
 
@@ -201,7 +215,7 @@ export default function HookLoop({ token }) {
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
         <Antigravity count={300} magnetRadius={6} ringRadius={7} waveSpeed={0.4} waveAmplitude={1} particleSize={1.5} lerpSpeed={0.05} color="#8B5CF6" autoAnimate particleVariance={1} rotationSpeed={0} depthFactor={1} pulseSpeed={3} particleShape="capsule" fieldStrength={10} />
       </div>
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'rgba(11, 11, 12, 0.85)' }}>
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100vh', backdropFilter: 'blur(10px)' }}>
         <style>{`
           * {
             box-sizing: border-box;
@@ -690,10 +704,7 @@ export default function HookLoop({ token }) {
                   onChange={e => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Bell size={18} color="#8B8B9B" />
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#2E3039', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <User size={14} color="#E2E8F0" />
-              </div>
+
             </div>
           </div>
 
@@ -836,8 +847,8 @@ export default function HookLoop({ token }) {
                           className={`hl-row ${(selectedHook?.id || selectedHook?._id) === (hook.id || hook._id) ? 'selected' : ''}`}
                           onClick={() => setSelectedHook(hook)}
                         >
-                          <td style={{ fontFamily: 'monospace', color: '#A1A1AA' }}>
-                            tr_92k_{String(hook.id || hook._id || idx).substring(0,4)}
+                          <td style={{ fontFamily: 'monospace', color: '#A1A1AA', fontWeight: 'bold' }}>
+                            {hook.id || idx}
                           </td>
                           <td>
                             <span className={(hook.method === 'POST' || hook.method === 'post') ? 'hl-badge-post' : 'hl-badge-get'}>
@@ -876,7 +887,7 @@ export default function HookLoop({ token }) {
                 <div className="hl-panel-header" style={{ flexWrap: 'wrap', gap: '12px' }}>
                   <span className="hl-panel-title" style={{ color: '#8B8B9B', display: 'flex', alignItems: 'center', gap: '16px', width: '100%', justifyContent: 'space-between' }}>
                     <span style={{ display: 'flex', alignItems: 'center' }}>Payload: <span style={{ color: '#E2E8F0', fontFamily: 'monospace', marginLeft: '6px' }}>
-                      {selectedHook ? `tr_92k_${String(selectedHook.id || selectedHook._id).substring(0,4)}` : '---'}
+                      {selectedHook ? (selectedHook.id || selectedHook._id) : '---'}
                     </span>
                     {signatureStatus === 'verified' && <span className="sig-badge sig-verified">[VERIFIED]</span>}
                     {signatureStatus === 'forged' && <span className="sig-badge sig-forged">[FORGED]</span>}
@@ -892,25 +903,7 @@ export default function HookLoop({ token }) {
                       </div>
                     )}
                   </span>
-                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                    <span style={{ fontSize: '0.7rem', color: '#8B8B9B', textTransform: 'uppercase' }}>HMAC Secret:</span>
-                    <input 
-                      type="password"
-                      placeholder="Enter secret to verify signature..."
-                      value={webhookSecret}
-                      onChange={e => setWebhookSecret(e.target.value)}
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '4px',
-                        padding: '4px 8px',
-                        color: '#E2E8F0',
-                        fontSize: '0.75rem',
-                        outline: 'none',
-                        flex: 1
-                      }}
-                    />
-                  </div>
+                  
                 </div>
                 <div className="hl-payload-content">
                   {selectedHook ? (
@@ -943,6 +936,16 @@ export default function HookLoop({ token }) {
             </div>
           </div>
 
+          {/* CONFIRM MODAL */}
+          <ConfirmModal 
+            isOpen={!!confirmAction}
+            title={confirmAction?.title}
+            message={confirmAction?.message}
+            confirmText={confirmAction?.confirmText}
+            onConfirm={() => confirmAction?.onConfirm()}
+            onCancel={() => setConfirmAction(null)}
+          />
+
           {/* EDIT MODAL */}
           {isModalOpen && (
             <div className="modal-overlay">
@@ -961,9 +964,10 @@ export default function HookLoop({ token }) {
                        const parsed = JSON.parse(editBody);
                        handleQuickReplay(selectedHook.id || selectedHook._id, parsed).then(() => {
                          setIsModalOpen(false);
-                       }).catch(() => alert('Replay Failed.'));
+                         toast.success("Replay Triggered!");
+                       }).catch(() => toast.error('Replay Failed.'));
                      } catch(e) {
-                       alert('Invalid JSON! Please check format.');
+                       toast.error('Invalid JSON! Please check format.');
                      }
                   }}>Confirm & Replay</button>
                 </div>

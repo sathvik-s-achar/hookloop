@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { Power, Terminal, Zap, Globe, Shield, Plus, Trash2, Activity } from 'lucide-react';
+import Antigravity from '../components/Antigravity';
 
 export default function ChaosProxy() {
   const [engaged, setEngaged] = useState(false);
@@ -63,8 +64,11 @@ export default function ChaosProxy() {
   );
 
   return (
-    <div style={{ position: 'relative', width: '100%', minHeight: '100vh', backgroundColor: '#0B0B0C', color: '#FFF', fontFamily: "'Inter', sans-serif" }}>
-      <div style={{ position: 'relative', zIndex: 1, padding: '40px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ position: 'relative', width: '100%', minHeight: '100vh', overflow: 'hidden', backgroundColor: '#0B0B0C', color: '#FFF', fontFamily: "'Inter', sans-serif" }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
+        <Antigravity count={300} magnetRadius={6} ringRadius={7} waveSpeed={0.4} waveAmplitude={1} particleSize={1.5} lerpSpeed={0.05} color="#7663ff" autoAnimate particleVariance={1} rotationSpeed={0} depthFactor={1} pulseSpeed={3} particleShape="capsule" fieldStrength={10} />
+      </div>
+      <div style={{ position: 'relative', zIndex: 1, padding: '40px', maxWidth: '1400px', margin: '0 auto' ,backdropFilter: 'blur(10px)' }}>
         
         {/* Header & Master Control */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
@@ -120,22 +124,22 @@ export default function ChaosProxy() {
               </select>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>
-              <div>
+            <div className="grid grid-cols-3 gap-6 w-full mb-5">
+              <div className="flex flex-col">
                 <label style={{ fontSize: '10px', color: '#888' }}>PRIORITY</label>
-                <input type="number" value={newRule.priority} onChange={e => setNewRule({...newRule, priority: Number(e.target.value)})} style={{ width: '100%', background: '#000', border: '1px solid #333', color: '#FFF', padding: '8px', borderRadius: '6px', marginTop: '5px' }} />
+                <input type="number" value={newRule.priority} onChange={e => setNewRule({...newRule, priority: Number(e.target.value)})} style={{ width: '100%', background: '#000', border: '1px solid #333', color: '#FFF', padding: '8px', borderRadius: '6px', marginTop: '5px', outline: 'none' }} />
               </div>
-              <div>
+              <div className="flex flex-col">
                 <label style={{ fontSize: '10px', color: '#F87171' }}>DROP RATE %</label>
-                <input type="number" min="0" max="100" value={newRule.errorRate} onChange={e => setNewRule({...newRule, errorRate: Number(e.target.value)})} style={{ width: '100%', background: '#000', border: '1px solid #333', color: '#FFF', padding: '8px', borderRadius: '6px', marginTop: '5px' }} />
+                <input type="number" min="0" max="100" value={newRule.errorRate} onChange={e => setNewRule({...newRule, errorRate: Number(e.target.value)})} style={{ width: '100%', background: '#000', border: '1px solid #333', color: '#FFF', padding: '8px', borderRadius: '6px', marginTop: '5px', outline: 'none' }} />
               </div>
-              <div>
+              <div className="flex flex-col">
                 <label style={{ fontSize: '10px', color: '#FBBF24' }}>LATENCY (ms)</label>
-                <input type="number" min="0" value={newRule.latency} onChange={e => setNewRule({...newRule, latency: Number(e.target.value)})} style={{ width: '100%', background: '#000', border: '1px solid #333', color: '#FFF', padding: '8px', borderRadius: '6px', marginTop: '5px' }} />
+                <input type="number" min="0" value={newRule.latency} onChange={e => setNewRule({...newRule, latency: Number(e.target.value)})} style={{ width: '100%', background: '#000', border: '1px solid #333', color: '#FFF', padding: '8px', borderRadius: '6px', marginTop: '5px', outline: 'none' }} />
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' , marginTop: '10px'}}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#A855F7' }}>
                 <input type="checkbox" checked={newRule.mutateReq} onChange={e => setNewRule({...newRule, mutateReq: e.target.checked})} /> Corrupt Request
               </label>

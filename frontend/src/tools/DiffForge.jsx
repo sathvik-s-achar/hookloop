@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FileJson, AlertTriangle, PlusCircle, MinusCircle, FileDiff, Zap, Edit2, Eye, ShieldAlert, ShieldCheck, ArrowRightLeft, EyeOff, Save, Download, Cloud, Globe, Loader2, RefreshCw } from 'lucide-react';
 import Antigravity from '../components/Antigravity';
+import toast from 'react-hot-toast';
 
 const getType = (val) => {
   if (val === null) return 'null';
@@ -319,9 +320,9 @@ export default function DiffForge() {
   const saveBaseline = () => {
     try {
       localStorage.setItem('diffForge_baseline', baseInput);
-      alert('Baseline JSON saved to Local Storage.');
+      toast.success('Baseline JSON saved.');
     } catch(e) {
-      alert('Failed to save baseline.');
+      toast.error('Failed to save baseline.');
     }
   };
 
@@ -329,8 +330,9 @@ export default function DiffForge() {
     const saved = localStorage.getItem('diffForge_baseline');
     if (saved) {
       setBaseInput(saved);
+      toast.success('Loaded baseline from storage.');
     } else {
-      alert('No saved baseline found in Local Storage.');
+      toast.error('No saved baseline found.');
     }
   };
 
@@ -431,7 +433,7 @@ export default function DiffForge() {
       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, opacity: 0.4 }}>
         <Antigravity count={300} magnetRadius={6} ringRadius={7} waveSpeed={0.4} waveAmplitude={1} particleSize={1.5} lerpSpeed={0.05} color="#f6f9fd" autoAnimate particleVariance={1} rotationSpeed={0} depthFactor={1} pulseSpeed={3} particleShape="capsule" fieldStrength={10} />
       </div>
-      <div style={{ position: 'relative', zIndex: 1, padding: '40px', maxWidth: '1400px', margin: '0 auto' ,backdropFilter:'blur(25px)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+      <div style={{ position: 'relative', zIndex: 1, padding: '40px', maxWidth: '1400px', margin: '0 auto' ,backdropFilter:'blur(15px)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
         
         {/* Header */}
         <div style={{ marginBottom: '30px' }}>

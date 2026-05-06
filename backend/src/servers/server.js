@@ -127,29 +127,31 @@ fastify.all('/webhook/:userId', async (request, reply) => {
   const { userId } = request.params;
   const { method, body, headers } = request;
 
-  console.log(`📩 Webhook received for User ${userId}!`);
   const safeBody = redactPII(body || {}); 
 
-  // 1. Save to DB
+  // 1. Save to DB. The SQLite `id` column acts as our persistent, auto-incrementing counter
   const stmt = db.prepare('INSERT INTO requests (user_id, method, headers, body) VALUES (?, ?, ?, ?)');
   const result = stmt.run(userId, method, JSON.stringify(headers), JSON.stringify(safeBody));
+  
+  // The persistent trace ID starting from 1 (resets on DELETE /webhooks)
+  const traceId = result.lastInsertRowid;
+  console.log(`📩 Webhook received for User ${userId}! Trace ID: ${traceId}`);
 
-  // 2. ⚡ REAL-TIME ALERT (Add this part!)
+  // 2. ⚡ REAL-TIME ALERT
   if (fastify.io) {
     fastify.io.to(`user_${userId}`).emit('new_webhook', {
-      id: result.lastInsertRowid, // The ID of the new row
+      id: traceId,
       method,
       headers,
       body: safeBody,
-      // ✅ This matches SQLite's default string format
       timestamp: new Date().toISOString().slice(0, 19).replace('T', ' ')
     });
   }
 
-  return { status: 'received', for_user: userId };
+  return { status: 'received', for_user: userId, trace_id: traceId };
 });
 
-// GET WEBHOOKS (Protected - Needs Login)
+
 // NEW: Only get webhooks for the logged-in user
 fastify.get('/webhooks', async (req, reply) => {
   // 1. Verify Token
@@ -207,7 +209,7 @@ fastify.delete('/webhooks', async (req, reply) => {
         // 1. Delete all the actual data rows
         db.prepare('DELETE FROM requests').run();
         
-        // 2. Reset the internal ID counter back to 0
+        // 2. Reset the internal ID counter back to 0 (This is our persistent counter for Trace IDs starting from 1)
         db.prepare("DELETE FROM sqlite_sequence WHERE name='requests'").run();
         
         console.log("🗑️ Database wiped clean and ID counter reset!");
@@ -276,9 +278,8 @@ fastify.post('/replay/:id', async (req, reply) => {
     }
 });
 
-// ==========================================
-// 🎭 1. MOCK SERVER MANAGEMENT APIs (For the React Dashboard)
-// ==========================================
+
+//1. MOCK SERVER MANAGEMENT APIs (For the React Dashboard)
 
 // GET all mocks for the logged-in user
 fastify.get('/api/mocks', { preHandler: authenticate }, async (req, reply) => {
@@ -292,27 +293,41 @@ fastify.post('/api/mocks', { preHandler: authenticate }, async (req, reply) => {
   
   // Clean up the path (ensure it always starts with a '/')
   const formattedPath = path.startsWith('/') ? path : '/' + path;
+  const upperMethod = method.toUpperCase();
+  const parsedStatus = parseInt(status_code) || 200;
 
-  const info = db.prepare(`
-    INSERT INTO mocks (user_id, path, method, status_code, response_body) 
-    VALUES (?, ?, ?, ?, ?)
-  `).run(req.user.id, formattedPath, method.toUpperCase(), parseInt(status_code) || 200, response_body);
-  
-  return reply.send({ id: info.lastInsertRowid, success: true });
+  // Check if a mock for this explicit path + method already exists for this user
+  const existingMock = db.prepare('SELECT id FROM mocks WHERE user_id = ? AND path = ? AND method = ?').get(req.user.id, formattedPath, upperMethod);
+
+  if (existingMock) {
+    // Upsert: Overwrite the existing mock body and status
+    db.prepare(`
+      UPDATE mocks 
+      SET status_code = ?, response_body = ?, created_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(parsedStatus, response_body, existingMock.id);
+    
+    return reply.send({ id: existingMock.id, success: true, updated: true });
+  } else {
+    // Insert: Brand new mock
+    const info = db.prepare(`
+      INSERT INTO mocks (user_id, path, method, status_code, response_body) 
+      VALUES (?, ?, ?, ?, ?)
+    `).run(req.user.id, formattedPath, upperMethod, parsedStatus, response_body);
+    
+    return reply.send({ id: info.lastInsertRowid, success: true, updated: false });
+  }
 });
 
 // DELETE a mock endpoint
 fastify.delete('/api/mocks/:id', { preHandler: authenticate }, async (req, reply) => {
-  db.prepare('DELETE FROM mocks WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
+  db.prepare('DELETE FROM mocks WHERE id = ? AND user_id = ?').run(Number(req.params.id), req.user.id);
   return reply.send({ success: true });
 });
 
 
-// ==========================================
-// 🌍 2. THE CATCH-ALL ENGINE (The actual fake server!)
-// ==========================================
+// 2. THE CATCH-ALL ENGINE (The actual fake server!)
 
-// Notice the wildcard '*' at the end! 
 // This catches anything sent to /mock/1/api/users, /mock/1/auth/login, etc.
 fastify.all('/mock/:userId/*', async (req, reply) => {
   const userId = req.params.userId;

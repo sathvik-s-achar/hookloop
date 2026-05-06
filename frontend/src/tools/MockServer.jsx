@@ -1,15 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Bell, User, Clock, Trash2, Server } from 'lucide-react';
+import { Search, Bell, User, Clock, Trash2, Server, Copy, Check } from 'lucide-react';
 import Antigravity from '../components/Antigravity';
+import ConfirmModal from '../components/ConfirmModal';
+import toast from 'react-hot-toast';
 
 export default function MockServer({ token }) {
   const [mocks, setMocks] = useState([]);
-  const [path, setPath] = useState('/api/v1/users/auth/login');
+  const [path, setPath] = useState('api/v1/users/auth/login');
   const [method, setMethod] = useState('POST');
   const [statusCode, setStatusCode] = useState(200);
   const [responseBody, setResponseBody] = useState('{\n  "status": "success",\n  "token": "ey...",\n  "user": {\n    "id": "uuid-7721",\n    "role": "admin"\n  }\n}');
   const [loading, setLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
+  const [copiedDesigner, setCopiedDesigner] = useState(false);
+  
+  // ConfirmModal states
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const fetchMocks = async () => {
     if (!token) return;
@@ -28,15 +35,76 @@ export default function MockServer({ token }) {
       JSON.parse(responseBody); 
       await axios.post('http://localhost:4000/api/mocks', { path, method, status_code: statusCode, response_body: responseBody }, { headers: { Authorization: `Bearer ${token}` } });
       await fetchMocks(); 
-    } catch (err) { alert('? Invalid JSON formatting!'); }
+      toast.success("Endpoint Deployed!");
+    } catch (err) { 
+      toast.error(err.response?.data?.message || 'Invalid JSON formatting or Operation Failed'); 
+    }
     setLoading(false);
   };
 
-  const handleDelete = async (id) => {
-    try {
-      await axios.delete(`http://localhost:4000/api/mocks/${id}`, { headers: { Authorization: `Bearer ${token}` }});
-      await fetchMocks();
-    } catch (err) { alert('Failed to delete mock'); }
+  const handleDelete = (id) => {
+    setConfirmAction({
+      title: "Delete Mock",
+      message: "Are you sure you want to delete this mock? This cannot be undone.",
+      confirmText: "Delete",
+      onConfirm: async () => {
+        try {
+          // Explicitly use fetch to avoid empty body JSON Content-Type headers from axios crashing Fastify
+          const res = await fetch(`http://localhost:4000/api/mocks/${id}`, { 
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!res.ok) throw new Error('Failed');
+          
+          await fetchMocks();
+          toast.success("Mock Deleted");
+        } catch (err) { 
+          toast.error('Failed to delete mock'); 
+        }
+        setConfirmAction(null);
+      }
+    });
+  };
+
+  const handlePurgeAll = () => {
+    setConfirmAction({
+      title: "Confirm Purge",
+      message: "Are you sure you want to purge all endpoints? This action cannot be undone.",
+      confirmText: "Confirm Purge",
+      onConfirm: async () => {
+        try {
+          for (let mock of mocks) {
+             const res = await fetch(`http://localhost:4000/api/mocks/${mock.id}`, { 
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+             });
+             if (!res.ok) throw new Error('Failed');
+          }
+          await fetchMocks();
+          toast.success("Logs Purged"); 
+        } catch (err) {
+          toast.error("Operation Failed");
+        }
+        setConfirmAction(null);
+      }
+    });
+  };
+
+  const handleCopyUrl = (path, id) => {
+    const fullUrl = `http://localhost:4000${path}`;
+    navigator.clipboard.writeText(fullUrl).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  };
+
+  const handleCopyDesignerUrl = (e) => {
+    e.preventDefault();
+    const fullUrl = `http://localhost:4000${path.startsWith('/') ? path : '/' + path}`;
+    navigator.clipboard.writeText(fullUrl).then(() => {
+      setCopiedDesigner(true);
+      setTimeout(() => setCopiedDesigner(false), 2000);
+    });
   };
 
   return (
@@ -45,7 +113,7 @@ export default function MockServer({ token }) {
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
         <Antigravity count={300} magnetRadius={6} ringRadius={7} waveSpeed={0.4} waveAmplitude={1} particleSize={1.5} lerpSpeed={0.05} color="#8B5CF6" autoAnimate particleVariance={1} rotationSpeed={0} depthFactor={1} pulseSpeed={3} particleShape="capsule" fieldStrength={10} />
       </div>
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'rgba(11, 11, 12, 0.85)' }}>
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100vh', backdropFilter: 'blur(10px)' }}>
         <style>{`
           * { box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; }
           .ms-layout { display: flex; flex-direction: column; width: 100%; height: 100vh; color: #E2E8F0; }
@@ -126,10 +194,6 @@ export default function MockServer({ token }) {
                 <Search size={14} color="#6B7280" />
                 <input type="text" className="ms-search-input" placeholder="Search endpoints... cmd+k" />
               </div>
-              <Bell size={18} color="#8B8B9B" />
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#2E3039', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <User size={14} color="#E2E8F0" />
-              </div>
             </div>
           </div>
 
@@ -137,7 +201,6 @@ export default function MockServer({ token }) {
             <div className="ms-header">
               <div>
                 <h1 className="ms-title">API Synthesizer</h1>
-                <p className="ms-subtitle">Architect high-fidelity mock environments and validate requests with the kinetic engine.</p>
               </div>
               <div className="ms-server-badge">
                 <div className="dot-green"></div>
@@ -157,10 +220,9 @@ export default function MockServer({ token }) {
                     <div className="ms-form-group" style={{ flex: 1, minWidth: '100px' }}>
                       <label className="ms-label">Method</label>
                       <select className="ms-input" value={method} onChange={(e) => setMethod(e.target.value)}>
-                        <option>GET</option>
-                        <option>POST</option>
-                        <option>PUT</option>
-                        <option>DELETE</option>
+                        <option style={{ backgroundColor: "black" }}>GET</option>
+                        <option style={{ backgroundColor: "black" }}>POST</option>
+                        <option style={{ backgroundColor: "black" }}>PUT</option>
                       </select>
                     </div>
                     <div className="ms-form-group" style={{ flex: 1, minWidth: '100px' }}>
@@ -186,6 +248,24 @@ export default function MockServer({ token }) {
                     />
                   </div>
 
+                  <div className="ms-form-group" style={{ marginBottom: '20px' }}>
+                    <label className="ms-label">Generated Endpoint URL</label>
+                    <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0, 0, 0, 0.5)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <div style={{ flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ color: '#6B7280' }}>http://localhost:4000</span>
+                        <span style={{ color: '#E2E8F0' }}>{path.startsWith('/') ? path : '/' + path}</span>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={handleCopyDesignerUrl}
+                        style={{ background: 'none', border: 'none', color: copiedDesigner ? '#10B981' : '#8B8B9B', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', transition: 'color 0.2s', marginLeft: '8px' }}
+                        title="Copy Generated URL"
+                      >
+                        {copiedDesigner ? <Check size={16} /> : <Copy size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
                   <button type="submit" className="ms-btn" disabled={loading || !token}>
                     {loading ? 'Deploying...' : 'Deploy Mock Endpoint'}
                   </button>
@@ -203,11 +283,26 @@ export default function MockServer({ token }) {
                     <div style={{ textAlign: 'center', color: '#6B7280', padding: '20px', fontSize: '0.85rem' }}>No active endpoints deployed.</div>
                   ) : (
                     mocks.map(mock => (
-                      <div key={mock.id} className="ms-mock-item">
-                        <span className={`ms-mock-method method-${mock.method}`}>{mock.method}</span>
-                        <span className="ms-mock-path">{mock.path}</span>
-                        <span className="ms-mock-status">{mock.status_code} {mock.status_code < 400 ? 'OK' : 'ERR'}</span>
-                        <Trash2 className="ms-mock-del" size={16} onClick={() => handleDelete(mock.id)} />
+                      <div key={mock.id} className="ms-mock-item" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span className={`ms-mock-method method-${mock.method}`}>{mock.method}</span>
+                          <span className="ms-mock-path" style={{ flex: 1, margin: '0 16px', wordBreak: 'break-all' }}>{mock.path}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <span className="ms-mock-status" style={{ paddingRight: 0 }}>{mock.status_code} {mock.status_code < 400 ? 'OK' : 'ERR'}</span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '6px 12px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                          <span style={{ fontSize: '0.75rem', color: '#6B7280', fontFamily: 'monospace', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            http://localhost:4000{mock.path}
+                          </span>
+                          <button 
+                            onClick={() => handleCopyUrl(mock.path, mock.id)}
+                            style={{ background: 'transparent', border: 'none', color: copiedId === mock.id ? '#10B981' : '#8B8B9B', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.2s' }}
+                            title="Copy URL"
+                          >
+                            {copiedId === mock.id ? <Check size={14} /> : <Copy size={14} className="hover:text-white" />}
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}
@@ -232,13 +327,26 @@ export default function MockServer({ token }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 UTC - {new Date().toISOString().substring(11, 19)}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+              <div 
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                onClick={handlePurgeAll}
+              >
                 <Trash2 size={12} /> PURGE ALL
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Confirm Modal */}
+      <ConfirmModal 
+        isOpen={!!confirmAction}
+        title={confirmAction?.title}
+        message={confirmAction?.message}
+        confirmText={confirmAction?.confirmText}
+        onConfirm={() => confirmAction?.onConfirm()}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
     
   

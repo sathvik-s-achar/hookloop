@@ -1,72 +1,3 @@
-// import React from 'react';
-// import MockServer from './tools/MockServer';
-// import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-// import './App.css'; // Make sure this is imported!
-// import Services from './components/Services';
-
-// // Import your tools
-// import HookLoop from './tools/HookLoop';
-// import JwtDecoder from './tools/JwtDecoder';
-
-// // Helper component for the sidebar links
-// const SidebarLink = ({ to, icon, label }) => {
-//   const location = useLocation();
-//   const isActive = location.pathname === to;
-  
-//   return (
-//     <Link to={to} className={`devforge-link ${isActive ? 'active' : ''}`}>
-//       <span style={{fontSize: '1.2rem'}}>{icon}</span>
-//       <span>{label}</span>
-//     </Link>
-//   );
-// };
-
-// export default function App() {
-//   return (
-//     <Router>
-//       <div className="devforge-layout">
-        
-//         {/* ---------------- SIDEBAR NAVIGATION ---------------- */}
-//         <div className="devforge-sidebar">
-          
-//           <div className="devforge-brand">
-//             <h1 style={{color: '#58a6ff', margin: 0, fontSize: '24px'}}>🛠️ DevForge</h1>
-//           </div>
-
-//           <nav className="devforge-nav">
-//             <div className="nav-category">Network Tools</div>
-//             <SidebarLink to="/" icon="🪝" label="HookLoop" />
-//             <SidebarLink to="/mock" icon="🎭" label="API Mock Server" />
-
-            
-//             <div className="nav-category" style={{marginTop: '25px'}}>Utilities</div>
-//             <SidebarLink to="/jwt" icon="🔐" label="JWT Decoder" />
-//           </nav>
-          
-//           <div style={{padding: '20px', borderTop: '1px solid #1f2937', fontSize: '14px', color: '#6b7280'}}>
-//             👨‍💻 Local Dev Workspace
-//           </div>
-//         </div>
-
-//         {/* ---------------- MAIN CANVAS ---------------- */}
-//         <div className="devforge-main">
-//           <Routes>
-//             {/* Tool #1: HookLoop */}
-//             <Route path="/" element={<HookLoop />} />
-            
-//             {/* Tool #2: JWT Decoder */}
-//             <Route path="/jwt" element={<JwtDecoder />} />
-
-//             {/* Placeholder for Mock Server */}
-//             <Route path="/mock" element={<MockServer />} />
-//           </Routes>
-//         </div>
-
-//       </div>
-//     </Router>
-//   );
-// }
-
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 
@@ -78,8 +9,8 @@ import JwtDecoder from './tools/JwtDecoder';
 import SchemaForge from './tools/SchemaForge';
 import ChaosProxy from './tools/ChaosProxy';
 import DiffForge from './tools/DiffForge';
-import DotGrid from './components/DotGrid';
 import ClickSpark from './components/ClickSpark';
+import { Toaster } from 'react-hot-toast';
 
 const SidebarLink = ({ to, icon, label, onClick }) => {
   const location = useLocation();
@@ -112,6 +43,16 @@ export default function App() {
 
   return (
     <Router>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#1A1A1A',
+            color: '#FFFFFF',
+            border: '1px solid #333333',
+          },
+        }}
+      />
       <ClickSpark
         sparkColor='#fff'
         sparkSize={10}
@@ -133,7 +74,7 @@ export default function App() {
         body {
           margin: 0;
           padding: 0;
-          background-color: transparent;
+          background-color: #0B0B0C;
           color: var(--text-primary);
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           -webkit-font-smoothing: antialiased;
@@ -311,10 +252,7 @@ export default function App() {
         ::-webkit-scrollbar-thumb:hover { background: #444; }
       `}</style>
 
-      <div className="app-container" style={{ position: 'relative' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 }}>
-            <DotGrid dotSize={3} gap={10} />
-        </div>
+      <div className="app-container" style={{ position: 'relative', backgroundColor: '#0B0B0C' }}>
         {/* Mobile Top Navigation Bar */}
         <div className="mobile-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

@@ -153,7 +153,7 @@ export default function JwtDecoder() {
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
         <Antigravity count={300} magnetRadius={6} ringRadius={7} waveSpeed={0.4} waveAmplitude={1} particleSize={1.5} lerpSpeed={0.05} color="#EC4899" autoAnimate particleVariance={1} rotationSpeed={0} depthFactor={1} pulseSpeed={3} particleShape="capsule" fieldStrength={10} />
       </div>
-      <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', padding: '60px 40px', color: '#FFFFFF', backgroundColor: 'rgba(11, 11, 12, 0.85)' }}>
+      <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', padding: '60px 40px', color: '#FFFFFF', backdropFilter: 'blur(10px)' }}>
       {/* Header Section */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px' }}>
         <div>

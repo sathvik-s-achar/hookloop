@@ -145,7 +145,7 @@ export default function SchemaForge() {
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
           <Antigravity count={300} magnetRadius={6} ringRadius={7} waveSpeed={0.4} waveAmplitude={1} particleSize={1.5} lerpSpeed={0.05} color="#8B5CF6" autoAnimate particleVariance={1} rotationSpeed={0} depthFactor={1} pulseSpeed={3} particleShape="capsule" fieldStrength={10} />
         </div>
-        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', backgroundColor: 'rgba(11, 11, 12, 0.85)' }}>
+        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', backdropFilter: 'blur(10px)' }}>
 
           <div className="workspace-wrapper">
             <h1 className="page-title">Schema Forge</h1>
